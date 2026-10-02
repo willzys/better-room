@@ -37,6 +37,10 @@ export const ROOM_ERROR_CODES = {
   MEMBERSHIP_EXPIRED: {
     code: 'MEMBERSHIP_EXPIRED',
     message: 'The membership has expired'
+  },
+  TOO_MANY_ATTEMPTS: {
+    code: 'TOO_MANY_ATTEMPTS',
+    message: 'Too many room codes have been tried'
   }
 } as const
 
@@ -55,3 +59,6 @@ export const refusalError = (refusal: JoinRefusal) => {
 
   return APIError.from(status, error)
 }
+
+export const attemptError = () =>
+  APIError.from('TOO_MANY_REQUESTS', ROOM_ERROR_CODES.TOO_MANY_ATTEMPTS)

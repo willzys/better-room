@@ -3,6 +3,7 @@ import { mergeSchema } from 'better-auth/db'
 import type { BetterAuthPluginDBSchema, DBFieldAttribute } from 'better-auth/db'
 
 import type { Actor } from '@/core/actor'
+import type { Attempt } from '@/core/attempt'
 import type { Membership } from '@/core/membership'
 import type { Room } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
@@ -31,6 +32,10 @@ export type RoomSchemaOption = {
     modelName?: string
     fields?: FieldNames<Membership>
     additionalFields?: AdditionalFields
+  }
+  roomAttempt?: {
+    modelName?: string
+    fields?: FieldNames<Attempt>
   }
 }
 
@@ -146,13 +151,30 @@ const memberTable = (additionalFields?: AdditionalFields) =>
     ]
   }) satisfies RoomTable
 
+const attemptTable = () =>
+  ({
+    fields: {
+      count: {
+        type: 'number',
+        required: true,
+        defaultValue: 1
+      },
+      lastAttemptAt: {
+        type: 'date',
+        required: true,
+        index: true
+      }
+    }
+  }) satisfies RoomTable
+
 export const createRoomSchema = (options?: RoomSchemaOption) =>
   mergeSchema(
     {
       roomActor: actorTable(),
       room: roomTable(options?.room?.additionalFields),
       roomCode: codeTable(),
-      roomMember: memberTable(options?.roomMember?.additionalFields)
+      roomMember: memberTable(options?.roomMember?.additionalFields),
+      roomAttempt: attemptTable()
     },
     options
   )

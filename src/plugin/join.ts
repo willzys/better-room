@@ -1,17 +1,22 @@
-import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
+import { createAuthEndpoint, getIP, getSessionFromCtx } from 'better-auth/api'
 import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
+import { isBlocked, recordAttempt } from '@/core/attempt'
 import { join } from '@/core/join'
-import { refusalError } from '@/plugin/errors'
-import { actorStore, joinStore } from '@/plugin/store'
+import { attemptError, refusalError } from '@/plugin/errors'
+import { actorStore, attemptStore, joinStore } from '@/plugin/store'
 import { decodeGrant, encodeGrant, isLive } from '@/security/grant'
 
-import type { ActorClaim } from '@/core/actor'
+import type { BetterAuthOptions } from 'better-auth/types'
+
+import type { Actor, ActorClaim } from '@/core/actor'
+import type { AttemptLimit, AttemptStore } from '@/core/attempt'
 import type { CodeIdentifier } from '@/security/code-identifier'
 import type { Usable } from '@/types/absence'
 
 const GRANT_COOKIE = 'room_grant'
+const GLOBAL_KEY = 'global'
 
 const joinBody = z.object({
   code: z.string().meta({ description: 'The room code being presented' })
@@ -20,6 +25,13 @@ const joinBody = z.object({
 type JoinDeps = {
   readonly identify: (secret: string) => CodeIdentifier
   readonly grantLifetime: number
+  readonly perIp: AttemptLimit
+  readonly everyone: AttemptLimit
+}
+
+type Budget = {
+  readonly key: string
+  readonly limit: AttemptLimit
 }
 
 const claimOf = (signed: unknown, now: Date): Usable<ActorClaim> => {
@@ -32,6 +44,51 @@ const claimOf = (signed: unknown, now: Date): Usable<ActorClaim> => {
   return { actorId: grant.actorId, epoch: grant.epoch }
 }
 
+const grantFor = (actor: Actor, lifetime: number, now: Date) =>
+  encodeGrant({
+    actorId: actor.id,
+    epoch: actor.grantEpoch,
+    expiresAt: now.getTime() + lifetime * 1000
+  })
+
+const addressOf = (request: Request | undefined, options: BetterAuthOptions) =>
+  request === undefined ? null : getIP(request, options)
+
+const budgetsOf = (ip: Usable<string>, deps: JoinDeps): Budget[] =>
+  ip === null
+    ? [{ key: GLOBAL_KEY, limit: deps.everyone }]
+    : [
+        { key: GLOBAL_KEY, limit: deps.everyone },
+        { key: `ip:${ip}`, limit: deps.perIp }
+      ]
+
+const blocked = async (
+  ip: Usable<string>,
+  deps: JoinDeps,
+  store: AttemptStore,
+  now: Date
+) => {
+  if (ip === null) return false
+
+  const [mine, everyone] = await Promise.all([
+    store.read(`ip:${ip}`),
+    store.read(GLOBAL_KEY)
+  ])
+
+  return isBlocked(
+    { mine, everyone },
+    { perIp: deps.perIp, everyone: deps.everyone },
+    now
+  )
+}
+
+const count = (budgets: Budget[], store: AttemptStore, now: Date) =>
+  Promise.all(
+    budgets.map(budget =>
+      recordAttempt({ key: budget.key, limit: budget.limit, now }, store)
+    )
+  )
+
 export const joinEndpoint = (deps: JoinDeps) =>
   createAuthEndpoint(
     '/room/join',
@@ -39,9 +96,19 @@ export const joinEndpoint = (deps: JoinDeps) =>
     async ctx => {
       const now = new Date()
       const { adapter, secret } = ctx.context
+      const attempts = attemptStore(adapter)
+      const ip = addressOf(ctx.request, ctx.context.options)
+      const budgets = budgetsOf(ip, deps)
+
+      if (await blocked(ip, deps, attempts, now)) throw attemptError()
+
       const identifier = await deps.identify(secret)(ctx.body.code)
 
-      if (identifier === null) throw refusalError('unresolved')
+      if (identifier === null) {
+        await count(budgets, attempts, now)
+
+        throw refusalError('unresolved')
+      }
 
       const cookie = ctx.context.createAuthCookie(GRANT_COOKIE, {
         maxAge: deps.grantLifetime
@@ -69,16 +136,18 @@ export const joinEndpoint = (deps: JoinDeps) =>
         joinStore(adapter)
       )
 
-      if (!outcome.admitted) throw refusalError(outcome.refusal)
+      if (!outcome.admitted) {
+        if (outcome.refusal === 'unresolved') {
+          await count(budgets, attempts, now)
+        }
+
+        throw refusalError(outcome.refusal)
+      }
 
       if (outcome.actor.userId === null) {
         await ctx.setSignedCookie(
           cookie.name,
-          encodeGrant({
-            actorId: outcome.actor.id,
-            epoch: outcome.actor.grantEpoch,
-            expiresAt: now.getTime() + deps.grantLifetime * 1000
-          }),
+          grantFor(outcome.actor, deps.grantLifetime, now),
           secret,
           cookie.attributes
         )
