@@ -1,0 +1,5 @@
+export type { Actor } from '@/core/actor'
+export type { Membership } from '@/core/membership'
+export type { Room, RoomStatus } from '@/core/room'
+export type { RoomCode, RoomCodeStatus } from '@/core/room-code'
+export type { RoomSchemaOption } from '@/plugin/schema'
