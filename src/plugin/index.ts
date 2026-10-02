@@ -26,6 +26,8 @@ const DEFAULT_ATTEMPT_WINDOW = 60
 const DEFAULT_ATTEMPTS_PER_IP = 10
 const DEFAULT_ATTEMPTS_FOR_EVERYONE = 600
 const MAX_GRANT_LIFETIME = 60 * 60 * 24 * 400
+const MAX_GRACE = 60 * 60 * 24
+const MAX_ATTEMPT_WINDOW = 60 * 60 * 24
 
 const grantLifetimeOf = (lifetime: number | undefined) => {
   const resolved = lifetime ?? DEFAULT_GRANT_LIFETIME
@@ -80,6 +82,12 @@ const attemptWindowOf = (window: number | undefined) => {
     throw new RangeError('attempt window must be a positive integer of seconds')
   }
 
+  if (resolved > MAX_ATTEMPT_WINDOW) {
+    throw new RangeError(
+      `attempt window must not exceed ${MAX_ATTEMPT_WINDOW} seconds`
+    )
+  }
+
   return resolved
 }
 
@@ -114,6 +122,10 @@ const graceOf = (grace: number | undefined) => {
 
   if (!Number.isInteger(resolved) || resolved < 1) {
     throw new RangeError('grace window must be a positive integer of seconds')
+  }
+
+  if (resolved > MAX_GRACE) {
+    throw new RangeError(`grace window must not exceed ${MAX_GRACE} seconds`)
   }
 
   return resolved
