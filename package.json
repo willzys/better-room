@@ -1,0 +1,50 @@
+{
+  "name": "better-room",
+  "version": "0.0.0",
+  "description": "room-scoped contextual authorization plugin for better auth",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "prepare": "simple-git-hooks"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@types/node": "^26.6.4",
+    "better-auth": "^1.7.7",
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "publint": "^0.3.25",
+    "simple-git-hooks": "^2.14.0",
+    "tsdown": "^0.23.0",
+    "typescript": "^5.9.3",
+    "ultracite": "^7.12.2"
+  },
+  "peerDependencies": {
+    "better-auth": "^1.7.7"
+  },
+  "simple-git-hooks": {
+    "commit-msg": "yarn commitlint --edit \"$1\""
+  },
+  "packageManager": "yarn@4.14.1"
+}
