@@ -26,15 +26,11 @@ export type ActorStore = {
 const claimed = (actor: Usable<Actor>, claim: ActorClaim): actor is Actor =>
   actor !== null && actor.userId === null && actor.grantEpoch === claim.epoch
 
-export const resolveActor = async (
+export const findActor = async (
   carriers: ActorCarriers,
   store: ActorStore
-): Promise<Actor> => {
-  if (carriers.userId !== null) {
-    const linked = await store.byUser(carriers.userId)
-
-    return linked ?? store.create(carriers.userId)
-  }
+): Promise<Usable<Actor>> => {
+  if (carriers.userId !== null) return store.byUser(carriers.userId)
 
   if (carriers.claim !== null) {
     const actor = await store.byId(carriers.claim.actorId)
@@ -42,5 +38,11 @@ export const resolveActor = async (
     if (claimed(actor, carriers.claim)) return actor
   }
 
-  return store.create(null)
+  return null
 }
+
+export const resolveActor = async (
+  carriers: ActorCarriers,
+  store: ActorStore
+): Promise<Actor> =>
+  (await findActor(carriers, store)) ?? store.create(carriers.userId)

@@ -147,3 +147,6 @@ export const oneIdentityError = () =>
 
 export const unknownActorError = () =>
   APIError.from('NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ACTOR)
+
+export const unknownRoomError = () =>
+  APIError.from('NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM)
