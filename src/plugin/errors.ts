@@ -71,6 +71,14 @@ export const ROOM_ERROR_CODES = {
   ALREADY_A_MEMBER: {
     code: 'ALREADY_A_MEMBER',
     message: 'The actor already holds a membership in this room'
+  },
+  EXACTLY_ONE_IDENTITY: {
+    code: 'EXACTLY_ONE_IDENTITY',
+    message: 'Name the member by exactly one of userId or actorId'
+  },
+  UNKNOWN_ACTOR: {
+    code: 'UNKNOWN_ACTOR',
+    message: 'No such actor'
   }
 } as const
 
@@ -133,3 +141,9 @@ export const additionError = (refusal: AdditionRefusal) => {
 
   return APIError.from(status, error)
 }
+
+export const oneIdentityError = () =>
+  APIError.from('BAD_REQUEST', ROOM_ERROR_CODES.EXACTLY_ONE_IDENTITY)
+
+export const unknownActorError = () =>
+  APIError.from('NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ACTOR)
