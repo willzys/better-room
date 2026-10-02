@@ -1,5 +1,5 @@
-import { mergeSchema } from 'better-auth/db'
 import type { BetterAuthPluginDBSchema, DBFieldAttribute } from 'better-auth/db'
+import { mergeSchema } from 'better-auth/db'
 
 import type { Actor } from '@/core/actor'
 import type { Membership } from '@/core/membership'
