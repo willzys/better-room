@@ -3,7 +3,7 @@ import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
 import { isBlocked, isExhausted, recordAttempt } from '@/core/attempt'
-import { join } from '@/core/join'
+import { join } from '@/core/operations/join'
 import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
 import { attemptError, refusalError } from '@/plugin/errors'
 import { membershipReport } from '@/plugin/report'

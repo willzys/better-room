@@ -1,7 +1,7 @@
 import { hasEnded } from '@/core/room'
 
-import type { Enrolment } from '@/core/join'
 import type { Membership } from '@/core/membership'
+import type { Enrolment } from '@/core/operations/join'
 import type { Room } from '@/core/room'
 import type { Absent, Perpetual, Unbounded, Usable } from '@/types/absence'
 

@@ -1,8 +1,8 @@
 import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
 import * as z from 'zod'
 
-import { readAccess } from '@/core/access'
 import { findActor } from '@/core/actor'
+import { readAccess } from '@/core/operations/access'
 import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
 import { unknownRoomError } from '@/plugin/errors'
 import { membershipReport, roomReport } from '@/plugin/report'

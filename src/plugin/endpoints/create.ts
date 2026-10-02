@@ -2,7 +2,7 @@ import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
 import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
-import { createRoom } from '@/core/creation'
+import { createRoom } from '@/core/operations/creation'
 import {
   exhaustedError,
   serverOnlyError,

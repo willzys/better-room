@@ -2,7 +2,7 @@ import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
-import { addMember } from '@/core/addition'
+import { addMember } from '@/core/operations/addition'
 import {
   additionError,
   additionServerOnlyError,

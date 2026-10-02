@@ -1,8 +1,8 @@
 import { APIError } from 'better-auth/api'
 
-import type { AdditionRefusal } from '@/core/addition'
-import type { JoinRefusal } from '@/core/join'
-import type { RotationRefusal } from '@/core/rotation'
+import type { AdditionRefusal } from '@/core/operations/addition'
+import type { JoinRefusal } from '@/core/operations/join'
+import type { RotationRefusal } from '@/core/operations/rotation'
 
 type RoomError = {
   readonly code: string

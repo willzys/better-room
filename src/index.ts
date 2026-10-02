@@ -9,7 +9,7 @@ export type {
 
 export type { Actor } from '@/core/actor'
 export type { Membership } from '@/core/membership'
-export type { Held } from '@/core/memberships'
+export type { Held } from '@/core/operations/memberships'
 export type { Room, RoomStatus } from '@/core/room'
 export type { RoomCode, RoomCodeStatus } from '@/core/room-code'
 export type { MembershipReport, RoomReport } from '@/plugin/report'

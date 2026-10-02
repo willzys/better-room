@@ -2,17 +2,17 @@ import { APIError } from 'better-auth/api'
 
 import type { DBAdapter, Where } from 'better-auth/types'
 
-import type { AccessStore } from '@/core/access'
 import type { Actor, ActorStore } from '@/core/actor'
-import type { AdditionStore } from '@/core/addition'
 import type { Attempt, AttemptStore } from '@/core/attempt'
-import type { CreationStore } from '@/core/creation'
-import type { JoinStore } from '@/core/join'
 import type { Membership } from '@/core/membership'
-import type { MembershipsStore } from '@/core/memberships'
+import type { AccessStore } from '@/core/operations/access'
+import type { AdditionStore } from '@/core/operations/addition'
+import type { CreationStore } from '@/core/operations/creation'
+import type { JoinStore } from '@/core/operations/join'
+import type { MembershipsStore } from '@/core/operations/memberships'
+import type { RotationStore } from '@/core/operations/rotation'
 import type { Room } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
-import type { RotationStore } from '@/core/rotation'
 import type { Unbounded, Unlinked, Usable } from '@/types/absence'
 
 const MODELS = {

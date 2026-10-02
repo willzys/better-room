@@ -1,4 +1,4 @@
-import { isAuthorized } from '@/core/access'
+import { isAuthorized } from '@/core/operations/access'
 
 import type { Actor } from '@/core/actor'
 import type { Membership } from '@/core/membership'
