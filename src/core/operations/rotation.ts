@@ -11,7 +11,7 @@ export type RotationStore = CodeIssuer & {
   readonly retireGrace: (roomId: string, at: Date) => Promise<void>
   readonly demoteOthers: (
     roomId: string,
-    keep: string,
+    issuedAt: Date,
     until: Date
   ) => Promise<void>
 }
@@ -47,7 +47,7 @@ export const rotateCode = async (
 
   await store.demoteOthers(
     request.roomId,
-    minted.identifier,
+    request.now,
     new Date(request.now.getTime() + request.grace * 1000)
   )
 

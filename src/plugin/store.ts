@@ -266,13 +266,13 @@ export const rotationStore = (adapter: DBAdapter): RotationStore => ({
       update: { status: 'revoked', revokedAt: at }
     })
   },
-  demoteOthers: async (roomId, keep, until) => {
+  demoteOthers: async (roomId, issuedAt, until) => {
     await adapter.updateMany({
       model: MODELS.code,
       where: [
         { field: 'roomId', value: roomId },
         { field: 'status', value: 'active' },
-        { field: 'id', operator: 'ne', value: keep }
+        { field: 'createdAt', operator: 'lt', value: issuedAt }
       ],
       update: { status: 'grace', expiresAt: until }
     })
