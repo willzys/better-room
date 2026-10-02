@@ -77,12 +77,34 @@ const blocked = async (
   )
 }
 
-const count = (budgets: Budget[], store: AttemptStore, now: Date) =>
-  Promise.all(
-    budgets.map(budget =>
-      recordAttempt({ key: budget.key, limit: budget.limit, now }, store)
-    )
+type Reporter = {
+  readonly warn: (message: string) => void
+}
+
+const count = async (
+  budgets: Budget[],
+  store: AttemptStore,
+  now: Date,
+  logger: Reporter
+) => {
+  const recorded = await Promise.all(
+    budgets.map(async budget => ({
+      key: budget.key,
+      counted: await recordAttempt(
+        { key: budget.key, limit: budget.limit, now },
+        store
+      )
+    }))
   )
+
+  for (const budget of recorded) {
+    if (!budget.counted) {
+      logger.warn(
+        `better-room could not count a failed attempt against ${budget.key}; its budget is under contention`
+      )
+    }
+  }
+}
 
 export const joinEndpoint = (deps: JoinDeps) =>
   createAuthEndpoint(
@@ -100,7 +122,7 @@ export const joinEndpoint = (deps: JoinDeps) =>
       const identifier = await deps.identify(secret)(ctx.body.code)
 
       if (identifier === null) {
-        await count(budgets, attempts, now)
+        await count(budgets, attempts, now, ctx.context.logger)
 
         throw refusalError('unresolved')
       }
@@ -130,7 +152,7 @@ export const joinEndpoint = (deps: JoinDeps) =>
 
       if (!outcome.admitted) {
         if (outcome.refusal === 'unresolved') {
-          await count(budgets, attempts, now)
+          await count(budgets, attempts, now, ctx.context.logger)
         }
 
         throw refusalError(outcome.refusal)

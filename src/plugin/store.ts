@@ -266,13 +266,13 @@ export const rotationStore = (adapter: DBAdapter): RotationStore => ({
       update: { status: 'revoked', revokedAt: at }
     })
   },
-  demoteOthers: async (roomId, keep, until) => {
+  demoteOthers: async (roomId, issuedAt, until) => {
     await adapter.updateMany({
       model: MODELS.code,
       where: [
         { field: 'roomId', value: roomId },
         { field: 'status', value: 'active' },
-        { field: 'id', operator: 'ne', value: keep }
+        { field: 'createdAt', operator: 'lt', value: issuedAt }
       ],
       update: { status: 'grace', expiresAt: until }
     })
@@ -296,20 +296,75 @@ export const accessStore = (adapter: DBAdapter): AccessStore => {
   return { room: joins.room, membership: joins.membership }
 }
 
+const standing = (actorId: string): Where[] => [
+  { field: 'actorId', value: actorId },
+  { field: 'leftAt', value: null },
+  { field: 'revokedAt', value: null }
+]
+
+const byRecency = (
+  left: readonly Membership[],
+  right: readonly Membership[]
+): Membership[] => {
+  const merged: Membership[] = []
+  let fromLeft = 0
+  let fromRight = 0
+
+  while (merged.length < HELD_CEILING) {
+    const head = left[fromLeft]
+    const rival = right[fromRight]
+
+    if (head === undefined) {
+      if (rival === undefined) break
+
+      merged.push(rival)
+      fromRight++
+    } else if (
+      rival === undefined ||
+      head.joinedAt.getTime() >= rival.joinedAt.getTime()
+    ) {
+      merged.push(head)
+      fromLeft++
+    } else {
+      merged.push(rival)
+      fromRight++
+    }
+  }
+
+  return merged
+}
+
 export const membershipsStore = (adapter: DBAdapter): MembershipsStore => ({
-  held: async actorId =>
-    (
-      await adapter.findMany<MemberRow>({
+  held: async (actorId, now) => {
+    const page = (where: Where[]) =>
+      adapter.findMany<MemberRow>({
         model: MODELS.member,
-        where: [
-          { field: 'actorId', value: actorId },
-          { field: 'leftAt', value: null },
-          { field: 'revokedAt', value: null }
-        ],
+        where,
         sortBy: { field: 'joinedAt', direction: 'desc' },
         limit: HELD_CEILING
       })
-    ).map(toMembership),
+
+    const [perpetual, dated] = await Promise.all([
+      page([...standing(actorId), { field: 'expiresAt', value: null }]),
+      page([
+        ...standing(actorId),
+        { field: 'expiresAt', operator: 'gt', value: now }
+      ])
+    ])
+
+    const memberships = byRecency(
+      perpetual.map(toMembership),
+      dated.map(toMembership)
+    )
+
+    return {
+      memberships,
+      complete:
+        perpetual.length < HELD_CEILING &&
+        dated.length < HELD_CEILING &&
+        memberships.length === perpetual.length + dated.length
+    }
+  },
   rooms: async ids =>
     (
       await adapter.findMany<RoomRow>({
