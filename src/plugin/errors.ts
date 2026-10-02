@@ -79,6 +79,10 @@ export const ROOM_ERROR_CODES = {
   UNKNOWN_ACTOR: {
     code: 'UNKNOWN_ACTOR',
     message: 'No such actor'
+  },
+  MEMBERSHIP_EXPIRES_IN_THE_PAST: {
+    code: 'MEMBERSHIP_EXPIRES_IN_THE_PAST',
+    message: 'The membership would expire before it began'
   }
 } as const
 
@@ -130,6 +134,10 @@ export const additionServerOnlyError = () =>
 
 const ADDITION_REFUSALS = {
   'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  'expires-in-the-past': [
+    'BAD_REQUEST',
+    ROOM_ERROR_CODES.MEMBERSHIP_EXPIRES_IN_THE_PAST
+  ],
   'already-a-member': ['CONFLICT', ROOM_ERROR_CODES.ALREADY_A_MEMBER],
   'at-capacity': ['CONFLICT', ROOM_ERROR_CODES.ROOM_AT_CAPACITY],
   closed: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_CLOSED],
