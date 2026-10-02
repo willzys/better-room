@@ -2,6 +2,9 @@ import { APIError } from 'better-auth/api'
 
 import type { AdditionRefusal } from '@/core/operations/addition'
 import type { JoinRefusal } from '@/core/operations/join'
+import type { LeaveRefusal } from '@/core/operations/leave'
+import type { LifecycleRefusal } from '@/core/operations/lifecycle'
+import type { RevocationRefusal } from '@/core/operations/revocation'
 import type { RotationRefusal } from '@/core/operations/rotation'
 
 type RoomError = {
@@ -79,6 +82,30 @@ export const ROOM_ERROR_CODES = {
   UNKNOWN_ACTOR: {
     code: 'UNKNOWN_ACTOR',
     message: 'No such actor'
+  },
+  NOT_A_MEMBER: {
+    code: 'NOT_A_MEMBER',
+    message: 'The caller holds no membership in this room'
+  },
+  ALREADY_REVOKED: {
+    code: 'ALREADY_REVOKED',
+    message: 'The membership was already revoked'
+  },
+  REVOCATION_IS_SERVER_ONLY: {
+    code: 'REVOCATION_IS_SERVER_ONLY',
+    message: 'Revoking a membership is not exposed over http'
+  },
+  LIFECYCLE_IS_SERVER_ONLY: {
+    code: 'LIFECYCLE_IS_SERVER_ONLY',
+    message: 'Changing a room state is not exposed over http'
+  },
+  RECONCILIATION_IS_SERVER_ONLY: {
+    code: 'RECONCILIATION_IS_SERVER_ONLY',
+    message: 'Reconciling capacity is not exposed over http'
+  },
+  MEMBERSHIP_EXPIRES_IN_THE_PAST: {
+    code: 'MEMBERSHIP_EXPIRES_IN_THE_PAST',
+    message: 'The membership would expire before it began'
   }
 } as const
 
@@ -130,6 +157,10 @@ export const additionServerOnlyError = () =>
 
 const ADDITION_REFUSALS = {
   'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  'expires-in-the-past': [
+    'BAD_REQUEST',
+    ROOM_ERROR_CODES.MEMBERSHIP_EXPIRES_IN_THE_PAST
+  ],
   'already-a-member': ['CONFLICT', ROOM_ERROR_CODES.ALREADY_A_MEMBER],
   'at-capacity': ['CONFLICT', ROOM_ERROR_CODES.ROOM_AT_CAPACITY],
   closed: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_CLOSED],
@@ -147,6 +178,51 @@ export const oneIdentityError = () =>
 
 export const unknownActorError = () =>
   APIError.from('NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ACTOR)
+
+const LEAVE_REFUSALS = {
+  'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  'not-a-member': ['FORBIDDEN', ROOM_ERROR_CODES.NOT_A_MEMBER],
+  revoked: ['FORBIDDEN', ROOM_ERROR_CODES.MEMBERSHIP_REVOKED],
+  'membership-expired': ['FORBIDDEN', ROOM_ERROR_CODES.MEMBERSHIP_EXPIRED]
+} as const satisfies Record<LeaveRefusal, Refusal>
+
+export const leaveError = (refusal: LeaveRefusal) => {
+  const [status, error] = LEAVE_REFUSALS[refusal]
+
+  return APIError.from(status, error)
+}
+
+const REVOCATION_REFUSALS = {
+  'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  'not-a-member': ['NOT_FOUND', ROOM_ERROR_CODES.NOT_A_MEMBER],
+  'already-revoked': ['CONFLICT', ROOM_ERROR_CODES.ALREADY_REVOKED]
+} as const satisfies Record<RevocationRefusal, Refusal>
+
+export const revocationError = (refusal: RevocationRefusal) => {
+  const [status, error] = REVOCATION_REFUSALS[refusal]
+
+  return APIError.from(status, error)
+}
+
+export const revocationServerOnlyError = () =>
+  APIError.from('FORBIDDEN', ROOM_ERROR_CODES.REVOCATION_IS_SERVER_ONLY)
+
+const LIFECYCLE_REFUSALS = {
+  'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  closed: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_CLOSED]
+} as const satisfies Record<LifecycleRefusal, Refusal>
+
+export const lifecycleError = (refusal: LifecycleRefusal) => {
+  const [status, error] = LIFECYCLE_REFUSALS[refusal]
+
+  return APIError.from(status, error)
+}
+
+export const lifecycleServerOnlyError = () =>
+  APIError.from('FORBIDDEN', ROOM_ERROR_CODES.LIFECYCLE_IS_SERVER_ONLY)
+
+export const reconciliationServerOnlyError = () =>
+  APIError.from('FORBIDDEN', ROOM_ERROR_CODES.RECONCILIATION_IS_SERVER_ONLY)
 
 export const unknownRoomError = () =>
   APIError.from('NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM)

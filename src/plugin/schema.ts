@@ -109,9 +109,16 @@ const memberTable = (additionalFields?: AdditionalFields) =>
         sortable: true
       },
       joinedAt: timestamp(),
-      expiresAt: { type: 'date', required: false },
+      expiresAt: { type: 'date', required: false, index: true },
       leftAt: { type: 'date', required: false },
       revokedAt: { type: 'date', required: false },
+      occupancy: {
+        type: 'number',
+        required: true,
+        defaultValue: 1,
+        input: false
+      },
+      releasedAt: { type: 'date', required: false },
       ...additionalFields
     },
     indexes: [

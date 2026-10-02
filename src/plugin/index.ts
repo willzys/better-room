@@ -2,7 +2,11 @@ import { accessEndpoint } from '@/plugin/endpoints/access'
 import { addEndpoint } from '@/plugin/endpoints/add'
 import { createEndpoint } from '@/plugin/endpoints/create'
 import { joinEndpoint } from '@/plugin/endpoints/join'
+import { leaveEndpoint } from '@/plugin/endpoints/leave'
+import { lifecycleEndpoint } from '@/plugin/endpoints/lifecycle'
 import { membershipsEndpoint } from '@/plugin/endpoints/memberships'
+import { reconcileEndpoint } from '@/plugin/endpoints/reconcile'
+import { revokeEndpoint } from '@/plugin/endpoints/revoke'
 import { rotateEndpoint } from '@/plugin/endpoints/rotate'
 import { ROOM_ERROR_CODES } from '@/plugin/errors'
 import { createRoomSchema } from '@/plugin/schema'
@@ -141,8 +145,14 @@ export const betterRoom = (options?: RoomOptions) => {
       getRoomAccess: accessEndpoint(),
       createRoom: createEndpoint({ format, identify, overHttp }),
       joinRoom: joinEndpoint({ identify, grantLifetime, perIp, everyone }),
+      leaveRoom: leaveEndpoint(),
       listRoomMemberships: membershipsEndpoint(),
-      rotateRoomCode: rotateEndpoint({ format, identify, grace })
+      rotateRoomCode: rotateEndpoint({ format, identify, grace }),
+      revokeRoomMember: revokeEndpoint(),
+      lockRoom: lifecycleEndpoint('lock'),
+      unlockRoom: lifecycleEndpoint('unlock'),
+      closeRoom: lifecycleEndpoint('close'),
+      reconcileRoomCapacity: reconcileEndpoint()
     },
     schema: createRoomSchema(options?.schema),
     $ERROR_CODES: ROOM_ERROR_CODES

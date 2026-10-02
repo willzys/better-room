@@ -1,7 +1,7 @@
 import { hasEnded } from '@/core/room'
 
 import type { Membership } from '@/core/membership'
-import type { Enrolment } from '@/core/operations/join'
+import type { Enrolment, Seated } from '@/core/operations/join'
 import type { Room } from '@/core/room'
 import type { Absent, Perpetual, Unbounded, Usable } from '@/types/absence'
 
@@ -10,6 +10,7 @@ export type AdditionRefusal =
   | 'at-capacity'
   | 'closed'
   | 'expired'
+  | 'expires-in-the-past'
   | 'unknown-room'
 
 export type AdditionStore = {
@@ -19,7 +20,8 @@ export type AdditionStore = {
     actorId: string
   ) => Promise<Usable<Membership>>
   readonly admit: (roomId: string, limit: Unbounded<number>) => Promise<boolean>
-  readonly enroll: (member: Enrolment) => Promise<Membership>
+  readonly enroll: (member: Enrolment) => Promise<Seated>
+  readonly lowerCount: (roomId: string) => Promise<void>
 }
 
 export type AdditionRequest = {
@@ -44,6 +46,10 @@ export const addMember = async (
   request: AdditionRequest,
   store: AdditionStore
 ): Promise<AdditionOutcome> => {
+  if (request.expiresAt !== null && request.expiresAt <= request.now) {
+    return { added: false, refusal: 'expires-in-the-past' }
+  }
+
   const room = await store.room(request.roomId)
 
   if (room === null) return { added: false, refusal: 'unknown-room' }
@@ -60,13 +66,18 @@ export const addMember = async (
     return { added: false, refusal: 'at-capacity' }
   }
 
-  return {
-    added: true,
-    membership: await store.enroll({
-      roomId: room.id,
-      actorId: request.actorId,
-      role: request.role,
-      expiresAt: request.expiresAt
-    })
+  const seated = await store.enroll({
+    roomId: room.id,
+    actorId: request.actorId,
+    role: request.role,
+    expiresAt: request.expiresAt
+  })
+
+  if (!seated.occupied) {
+    await store.lowerCount(room.id)
+
+    return { added: false, refusal: 'already-a-member' }
   }
+
+  return { added: true, membership: seated.membership }
 }

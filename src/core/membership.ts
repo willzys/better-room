@@ -11,6 +11,11 @@ export type Membership = {
   revokedAt: Pending<Date>
 }
 
+export const occupies = (membership: Membership, now: Date) =>
+  membership.leftAt === null &&
+  membership.revokedAt === null &&
+  (membership.expiresAt === null || membership.expiresAt > now)
+
 export type MembershipRefusal = 'membership-expired' | 'revoked'
 
 export const membershipRefusal = (

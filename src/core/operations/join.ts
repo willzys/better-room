@@ -23,6 +23,11 @@ export type JoinRefusal =
   | 'at-capacity'
   | 'unresolved'
 
+export type Seated = {
+  readonly membership: Membership
+  readonly occupied: boolean
+}
+
 export type JoinStore = {
   readonly code: (identifier: string) => Promise<Usable<RoomCode>>
   readonly room: (id: string) => Promise<Usable<Room>>
@@ -31,8 +36,9 @@ export type JoinStore = {
     actorId: string
   ) => Promise<Usable<Membership>>
   readonly admit: (roomId: string, limit: Unbounded<number>) => Promise<boolean>
-  readonly enroll: (member: Enrolment) => Promise<Membership>
-  readonly reinstate: (membershipId: string) => Promise<Membership>
+  readonly enroll: (member: Enrolment) => Promise<Seated>
+  readonly reinstate: (membershipId: string) => Promise<Seated>
+  readonly lowerCount: (roomId: string) => Promise<void>
 }
 
 export type JoinRequest = {
@@ -59,6 +65,27 @@ const admit = (actor: Actor, membership: Membership): JoinOutcome => ({
   actor,
   membership
 })
+
+const seat = async (
+  room: Room,
+  actor: Actor,
+  existing: Usable<Membership>,
+  store: JoinStore
+): Promise<Membership> => {
+  const seated =
+    existing === null
+      ? await store.enroll({
+          roomId: room.id,
+          actorId: actor.id,
+          role: JOINED_ROLE,
+          expiresAt: null
+        })
+      : await store.reinstate(existing.id)
+
+  if (!seated.occupied) await store.lowerCount(room.id)
+
+  return seated.membership
+}
 
 export const join = async (
   request: JoinRequest,
@@ -92,15 +119,5 @@ export const join = async (
     return refuse('at-capacity')
   }
 
-  return admit(
-    actor,
-    existing === null
-      ? await store.enroll({
-          roomId: room.id,
-          actorId: actor.id,
-          role: JOINED_ROLE,
-          expiresAt: null
-        })
-      : await store.reinstate(existing.id)
-  )
+  return admit(actor, await seat(room, actor, existing, store))
 }
