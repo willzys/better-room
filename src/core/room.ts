@@ -12,6 +12,9 @@ export type Room = {
   createdAt: Date
 }
 
+export const hasEnded = (room: Room, now: Date) =>
+  room.status === 'closed' || (room.expiresAt !== null && room.expiresAt <= now)
+
 export type RoomRefusal = 'closed' | 'expired' | 'locked'
 
 export const roomRefusal = (room: Room, now: Date): RoomRefusal | Absent => {

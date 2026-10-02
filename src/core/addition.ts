@@ -1,3 +1,5 @@
+import { hasEnded } from '@/core/room'
+
 import type { Enrolment } from '@/core/join'
 import type { Membership } from '@/core/membership'
 import type { Room } from '@/core/room'
@@ -33,10 +35,9 @@ export type AdditionOutcome =
   | { readonly added: true; readonly membership: Membership }
 
 const admits = (room: Room, now: Date): AdditionRefusal | Absent => {
-  if (room.status === 'closed') return 'closed'
-  if (room.expiresAt !== null && room.expiresAt <= now) return 'expired'
+  if (!hasEnded(room, now)) return null
 
-  return null
+  return room.status === 'closed' ? 'closed' : 'expired'
 }
 
 export const addMember = async (
