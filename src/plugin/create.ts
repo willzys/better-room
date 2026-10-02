@@ -9,6 +9,7 @@ import {
   unauthenticatedError
 } from '@/plugin/errors'
 import { minter } from '@/plugin/mint'
+import { roomReport } from '@/plugin/report'
 import { actorStore, creationStore } from '@/plugin/store'
 
 import type { CodeFormat } from '@/security/code-format'
@@ -78,6 +79,6 @@ export const createEndpoint = (deps: CreateDeps) =>
 
       if (created === null) throw exhaustedError()
 
-      return ctx.json({ room: created.room, code: created.code })
+      return ctx.json({ room: roomReport(created.room), code: created.code })
     }
   )

@@ -9,6 +9,7 @@ import {
   oneIdentityError,
   unknownActorError
 } from '@/plugin/errors'
+import { membershipReport } from '@/plugin/report'
 import { actorStore, additionStore } from '@/plugin/store'
 
 import type { Actor, ActorStore } from '@/core/actor'
@@ -89,6 +90,6 @@ export const addEndpoint = () =>
 
       if (!outcome.added) throw additionError(outcome.refusal)
 
-      return ctx.json({ membership: outcome.membership })
+      return ctx.json({ membership: membershipReport(outcome.membership) })
     }
   )

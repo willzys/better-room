@@ -5,6 +5,7 @@ import { readAccess } from '@/core/access'
 import { findActor } from '@/core/actor'
 import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
 import { unknownRoomError } from '@/plugin/errors'
+import { membershipReport, roomReport } from '@/plugin/report'
 import { accessStore, actorStore } from '@/plugin/store'
 
 const accessQuery = z.object({
@@ -39,8 +40,8 @@ export const accessEndpoint = () =>
 
       return ctx.json({
         authorized: access.authorized,
-        room: access.room,
-        membership: access.held
+        room: roomReport(access.room),
+        membership: access.held === null ? null : membershipReport(access.held)
       })
     }
   )

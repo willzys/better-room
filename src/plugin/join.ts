@@ -6,6 +6,7 @@ import { isBlocked, isExhausted, recordAttempt } from '@/core/attempt'
 import { join } from '@/core/join'
 import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
 import { attemptError, refusalError } from '@/plugin/errors'
+import { membershipReport } from '@/plugin/report'
 import { actorStore, attemptStore, joinStore } from '@/plugin/store'
 import { encodeGrant } from '@/security/grant'
 
@@ -144,6 +145,6 @@ export const joinEndpoint = (deps: JoinDeps) =>
         )
       }
 
-      return ctx.json({ membership: outcome.membership })
+      return ctx.json({ membership: membershipReport(outcome.membership) })
     }
   )
