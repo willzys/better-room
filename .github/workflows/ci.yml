@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Lint and format
+    name: Verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +34,10 @@ jobs:
       - run: yarn oxlint .
 
       - run: yarn oxfmt --check .
+
+      - run: yarn typecheck
+
+      - run: yarn build
 
   subject:
     name: Squash subject
