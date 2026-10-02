@@ -1,42 +1,14 @@
 import { mergeSchema } from 'better-auth/db'
 
 import type { BetterAuthPluginDBSchema, DBFieldAttribute } from 'better-auth/db'
-
-import type { Actor } from '@/core/actor'
-import type { Attempt } from '@/core/attempt'
-import type { Membership } from '@/core/membership'
-import type { Room } from '@/core/room'
-import type { RoomCode } from '@/core/room-code'
-
-type FieldNames<T> = { [K in keyof Omit<T, 'id'>]?: string }
+import type { InferOptionSchema } from 'better-auth/types'
 
 type AdditionalFields = Record<string, DBFieldAttribute>
 
 type RoomTable = BetterAuthPluginDBSchema[string]
 
-export type RoomSchemaOption = {
-  roomActor?: {
-    modelName?: string
-    fields?: FieldNames<Actor>
-  }
-  room?: {
-    modelName?: string
-    fields?: FieldNames<Room>
-    additionalFields?: AdditionalFields
-  }
-  roomCode?: {
-    modelName?: string
-    fields?: FieldNames<RoomCode>
-  }
-  roomMember?: {
-    modelName?: string
-    fields?: FieldNames<Membership>
-    additionalFields?: AdditionalFields
-  }
-  roomAttempt?: {
-    modelName?: string
-    fields?: FieldNames<Attempt>
-  }
+type Extendable = {
+  additionalFields?: AdditionalFields
 }
 
 const timestamp = () =>
@@ -166,6 +138,19 @@ const attemptTable = () =>
       }
     }
   }) satisfies RoomTable
+
+type BaseSchema = {
+  roomActor: ReturnType<typeof actorTable>
+  room: ReturnType<typeof roomTable>
+  roomCode: ReturnType<typeof codeTable>
+  roomMember: ReturnType<typeof memberTable>
+  roomAttempt: ReturnType<typeof attemptTable>
+}
+
+export type RoomSchemaOption = InferOptionSchema<BaseSchema> & {
+  room?: Extendable
+  roomMember?: Extendable
+}
 
 export const createRoomSchema = (options?: RoomSchemaOption) =>
   mergeSchema(
