@@ -508,7 +508,7 @@ export const promotionStore = (adapter: DBAdapter): PromotionStore => {
         })
       ).map(toMembership),
     membership: joins.membership,
-    reassign: async (membershipId, _roomId, actorId) => {
+    reassign: async (membershipId, roomId, actorId) => {
       try {
         return (
           (await adapter.update<MemberRow>({
@@ -517,7 +517,14 @@ export const promotionStore = (adapter: DBAdapter): PromotionStore => {
             update: { actorId }
           })) !== null
         )
-      } catch {
+      } catch (error) {
+        const taken = await adapter.findOne<MemberRow>({
+          model: MODELS.member,
+          where: pairing(roomId, actorId)
+        })
+
+        if (taken === null) throw error
+
         return false
       }
     },

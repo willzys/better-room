@@ -19,7 +19,11 @@ export type PromotionStore = ReleaseStore & {
     roomId: string,
     actorId: string
   ) => Promise<Usable<Membership>>
-  readonly reassign: (membershipId: string, actorId: string) => Promise<boolean>
+  readonly reassign: (
+    membershipId: string,
+    roomId: string,
+    actorId: string
+  ) => Promise<boolean>
   readonly discard: (membershipId: string) => Promise<void>
   readonly forget: (actorId: string) => Promise<void>
 }
@@ -52,11 +56,14 @@ const carry = async (
 ): Promise<boolean> => {
   const standing = await store.membership(membership.roomId, owner.id)
 
-  if (standing === null && (await store.reassign(membership.id, owner.id))) {
+  if (
+    standing === null &&
+    (await store.reassign(membership.id, membership.roomId, owner.id))
+  ) {
     return true
   }
 
-  await release(membership, now, store)
+  await release(membership, now, store, 'none')
   await store.discard(membership.id)
 
   return false
