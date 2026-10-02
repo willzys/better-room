@@ -3,19 +3,20 @@ import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
 import { isBlocked, isExhausted, recordAttempt } from '@/core/attempt'
-import { join } from '@/core/join'
+import { join } from '@/core/operations/join'
+import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
 import { attemptError, refusalError } from '@/plugin/errors'
+import { membershipReport } from '@/plugin/report'
 import { actorStore, attemptStore, joinStore } from '@/plugin/store'
-import { decodeGrant, encodeGrant, isLive } from '@/security/grant'
+import { encodeGrant } from '@/security/grant'
 
 import type { BetterAuthOptions } from 'better-auth/types'
 
-import type { Actor, ActorClaim } from '@/core/actor'
+import type { Actor } from '@/core/actor'
 import type { AttemptLimit, AttemptStore } from '@/core/attempt'
 import type { CodeIdentifier } from '@/security/code-identifier'
 import type { Usable } from '@/types/absence'
 
-const GRANT_COOKIE = 'room_grant'
 const GLOBAL_KEY = 'global'
 
 const joinBody = z.object({
@@ -32,16 +33,6 @@ type JoinDeps = {
 type Budget = {
   readonly key: string
   readonly limit: AttemptLimit
-}
-
-const claimOf = (signed: unknown, now: Date): Usable<ActorClaim> => {
-  if (typeof signed !== 'string') return null
-
-  const grant = decodeGrant(signed)
-
-  if (grant === null || !isLive(grant, now)) return null
-
-  return { actorId: grant.actorId, epoch: grant.epoch }
 }
 
 const grantFor = (actor: Actor, lifetime: number, now: Date) =>
@@ -129,10 +120,7 @@ export const joinEndpoint = (deps: JoinDeps) =>
             ])
 
             return resolveActor(
-              {
-                userId: session?.user.id ?? null,
-                claim: claimOf(signed, now)
-              },
+              carriersOf(signed, session, now),
               actorStore(adapter)
             )
           }
@@ -157,6 +145,6 @@ export const joinEndpoint = (deps: JoinDeps) =>
         )
       }
 
-      return ctx.json({ membership: outcome.membership })
+      return ctx.json({ membership: membershipReport(outcome.membership) })
     }
   )

@@ -29,7 +29,7 @@ export type Access =
       readonly authorized: boolean
     }
 
-const authorizes = (
+export const isAuthorized = (
   room: Room,
   held: Usable<Membership>,
   now: Date
@@ -56,6 +56,6 @@ export const readAccess = async (
     found: true,
     room,
     held,
-    authorized: authorizes(room, held, request.now)
+    authorized: isAuthorized(room, held, request.now)
   }
 }

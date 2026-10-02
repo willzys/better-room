@@ -1,7 +1,7 @@
 import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
-import { rotateCode } from '@/core/rotation'
+import { rotateCode } from '@/core/operations/rotation'
 import { rotationError, rotationServerOnlyError } from '@/plugin/errors'
 import { minter } from '@/plugin/mint'
 import { rotationStore } from '@/plugin/store'
