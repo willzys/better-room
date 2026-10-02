@@ -9,8 +9,12 @@ import type { AccessStore } from '@/core/operations/access'
 import type { AdditionStore } from '@/core/operations/addition'
 import type { CreationStore } from '@/core/operations/creation'
 import type { Enrolment, JoinStore, Seated } from '@/core/operations/join'
+import type { LeaveStore } from '@/core/operations/leave'
+import type { LifecycleStore } from '@/core/operations/lifecycle'
 import type { MembershipsStore } from '@/core/operations/memberships'
+import type { ReconciliationStore } from '@/core/operations/reconciliation'
 import type { ReleaseStore } from '@/core/operations/release'
+import type { RevocationStore } from '@/core/operations/revocation'
 import type { RotationStore } from '@/core/operations/rotation'
 import type { Room } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
@@ -389,6 +393,44 @@ const byRecency = (
   }
 
   return merged
+}
+
+export const leaveStore = (adapter: DBAdapter): LeaveStore => {
+  const joins = joinStore(adapter)
+
+  return {
+    ...releaseStore(adapter),
+    room: joins.room,
+    membership: joins.membership,
+    withdraw: async (membershipId, at) =>
+      found(
+        await adapter.update<MemberRow>({
+          model: MODELS.member,
+          where: [...byId(membershipId), { field: 'leftAt', value: null }],
+          update: { leftAt: at }
+        }),
+        toMembership
+      )
+  }
+}
+
+export const revocationStore = (adapter: DBAdapter): RevocationStore => {
+  const joins = joinStore(adapter)
+
+  return {
+    ...releaseStore(adapter),
+    room: joins.room,
+    membership: joins.membership,
+    revoke: async (membershipId, at) =>
+      found(
+        await adapter.update<MemberRow>({
+          model: MODELS.member,
+          where: [...byId(membershipId), { field: 'revokedAt', value: null }],
+          update: { revokedAt: at }
+        }),
+        toMembership
+      )
+  }
 }
 
 export const releaseStore = (adapter: DBAdapter): ReleaseStore => ({
