@@ -95,7 +95,7 @@ const count = (budgets: Budget[], store: AttemptStore, now: Date) =>
 
 export const joinEndpoint = (deps: JoinDeps) =>
   createAuthEndpoint(
-    '/room/join',
+    '/better-room/join',
     { method: 'POST', body: joinBody },
     async ctx => {
       const now = new Date()

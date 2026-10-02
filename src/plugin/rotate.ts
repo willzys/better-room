@@ -21,7 +21,7 @@ type RotateDeps = {
 
 export const rotateEndpoint = (deps: RotateDeps) =>
   createAuthEndpoint(
-    '/room/rotate-code',
+    '/better-room/rotate-code',
     { method: 'POST', body: rotateBody },
     async ctx => {
       if (ctx.request !== undefined) throw rotationServerOnlyError()
