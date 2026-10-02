@@ -307,27 +307,27 @@ const byRecency = (
   right: readonly Membership[]
 ): Membership[] => {
   const merged: Membership[] = []
-  let taken = 0
-  let other = 0
+  let fromLeft = 0
+  let fromRight = 0
 
   while (merged.length < HELD_CEILING) {
-    const mine = left[taken]
-    const theirs = right[other]
+    const head = left[fromLeft]
+    const rival = right[fromRight]
 
-    if (mine === undefined) {
-      if (theirs === undefined) break
+    if (head === undefined) {
+      if (rival === undefined) break
 
-      merged.push(theirs)
-      other++
+      merged.push(rival)
+      fromRight++
     } else if (
-      theirs === undefined ||
-      mine.joinedAt.getTime() >= theirs.joinedAt.getTime()
+      rival === undefined ||
+      head.joinedAt.getTime() >= rival.joinedAt.getTime()
     ) {
-      merged.push(mine)
-      taken++
+      merged.push(head)
+      fromLeft++
     } else {
-      merged.push(theirs)
-      other++
+      merged.push(rival)
+      fromRight++
     }
   }
 
@@ -352,12 +352,17 @@ export const membershipsStore = (adapter: DBAdapter): MembershipsStore => ({
       ])
     ])
 
+    const memberships = byRecency(
+      perpetual.map(toMembership),
+      dated.map(toMembership)
+    )
+
     return {
-      memberships: byRecency(
-        perpetual.map(toMembership),
-        dated.map(toMembership)
-      ),
-      complete: perpetual.length < HELD_CEILING && dated.length < HELD_CEILING
+      memberships,
+      complete:
+        perpetual.length < HELD_CEILING &&
+        dated.length < HELD_CEILING &&
+        memberships.length === perpetual.length + dated.length
     }
   },
   rooms: async ids =>
