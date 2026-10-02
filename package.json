@@ -53,6 +53,7 @@
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.4",
     "better-auth": "^1.7.7",
+    "drizzle-orm": "^0.45.3",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.86.0",
     "publint": "^0.3.25",
