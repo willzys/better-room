@@ -179,13 +179,27 @@ export const actorStore = (adapter: DBAdapter): ActorStore => ({
       }),
       toActor
     ),
-  create: async (userId: Unlinked<string>) =>
-    toActor(
-      await adapter.create<Input, ActorRow>({
+  create: async (userId: Unlinked<string>) => {
+    try {
+      return toActor(
+        await adapter.create<Input, ActorRow>({
+          model: MODELS.actor,
+          data: { userId }
+        })
+      )
+    } catch (error) {
+      if (userId === null) throw error
+
+      const linked = await adapter.findOne<ActorRow>({
         model: MODELS.actor,
-        data: { userId }
+        where: [{ field: 'userId', value: userId }]
       })
-    )
+
+      if (linked === null) throw error
+
+      return toActor(linked)
+    }
+  }
 })
 
 export const joinStore = (adapter: DBAdapter): JoinStore => ({
