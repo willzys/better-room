@@ -1,5 +1,8 @@
+import { addEndpoint } from '@/plugin/add'
+import { createEndpoint } from '@/plugin/create'
 import { ROOM_ERROR_CODES } from '@/plugin/errors'
 import { joinEndpoint } from '@/plugin/join'
+import { rotateEndpoint } from '@/plugin/rotate'
 import { createRoomSchema } from '@/plugin/schema'
 import { codeFormat } from '@/security/code-format'
 import { codeIdentifier } from '@/security/code-identifier'
@@ -11,6 +14,7 @@ import type { CodeFormatName } from '@/security/code-format'
 import type { CodeIdentifier } from '@/security/code-identifier'
 
 const DEFAULT_GRANT_LIFETIME = 60 * 60 * 24 * 7
+const DEFAULT_GRACE = 120
 const DEFAULT_ATTEMPT_WINDOW = 60
 const DEFAULT_ATTEMPTS_PER_IP = 10
 const DEFAULT_ATTEMPTS_FOR_EVERYONE = 600
@@ -36,9 +40,13 @@ export type RoomOptions = {
   readonly code?: {
     readonly format?: CodeFormatName
     readonly length?: number
+    readonly grace?: number
   }
   readonly grant?: {
     readonly lifetime?: number
+  }
+  readonly creation?: {
+    readonly overHttp?: boolean
   }
   readonly attempts?: {
     readonly window?: number
@@ -91,26 +99,43 @@ const limitsOf = (attempts: RoomOptions['attempts']) => {
   }
 }
 
-export const betterRoom = (options?: RoomOptions) => {
-  const format = codeFormat(
-    options?.code?.format ?? 'crockford',
-    options?.code?.length
-  )
+const formatOf = (code: RoomOptions['code']) =>
+  codeFormat(code?.format ?? 'crockford', code?.length)
 
-  const grantLifetime = grantLifetimeOf(options?.grant?.lifetime)
-  const { perIp, everyone } = limitsOf(options?.attempts)
+const graceOf = (grace: number | undefined) => {
+  const resolved = grace ?? DEFAULT_GRACE
+
+  if (!Number.isInteger(resolved) || resolved < 1) {
+    throw new RangeError('grace window must be a positive integer of seconds')
+  }
+
+  return resolved
+}
+
+const settingsOf = (options?: RoomOptions) => ({
+  format: formatOf(options?.code),
+  grace: graceOf(options?.code?.grace),
+  grantLifetime: grantLifetimeOf(options?.grant?.lifetime),
+  overHttp: options?.creation?.overHttp ?? false,
+  ...limitsOf(options?.attempts)
+})
+
+export const betterRoom = (options?: RoomOptions) => {
+  const { format, grace, grantLifetime, overHttp, perIp, everyone } =
+    settingsOf(options)
 
   let identifier: CodeIdentifier | undefined
+
+  const identify = (secret: string) =>
+    (identifier ??= codeIdentifier({ format, secret }))
 
   return {
     id: 'better-room',
     endpoints: {
-      joinRoom: joinEndpoint({
-        identify: secret => (identifier ??= codeIdentifier({ format, secret })),
-        grantLifetime,
-        perIp,
-        everyone
-      })
+      addRoomMember: addEndpoint(),
+      createRoom: createEndpoint({ format, identify, overHttp }),
+      joinRoom: joinEndpoint({ identify, grantLifetime, perIp, everyone }),
+      rotateRoomCode: rotateEndpoint({ format, identify, grace })
     },
     schema: createRoomSchema(options?.schema),
     $ERROR_CODES: ROOM_ERROR_CODES
