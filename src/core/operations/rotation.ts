@@ -9,9 +9,10 @@ export type RotationRefusal = 'closed' | 'exhausted' | 'unknown-room'
 export type RotationStore = CodeIssuer & {
   readonly room: (id: string) => Promise<Usable<Room>>
   readonly retireGrace: (roomId: string, at: Date) => Promise<void>
+  readonly activeCodes: (roomId: string) => Promise<string[]>
   readonly demoteOthers: (
     roomId: string,
-    issuedAt: Date,
+    codeIds: string[],
     until: Date
   ) => Promise<void>
 }
@@ -38,6 +39,8 @@ export const rotateCode = async (
 
   await store.retireGrace(request.roomId, request.now)
 
+  const replaced = await store.activeCodes(request.roomId)
+
   const minted = await issueCode(
     { roomId: request.roomId, mint: request.mint, now: request.now },
     store
@@ -45,11 +48,13 @@ export const rotateCode = async (
 
   if (minted === null) return { rotated: false, refusal: 'exhausted' }
 
-  await store.demoteOthers(
-    request.roomId,
-    request.now,
-    new Date(request.now.getTime() + request.grace * 1000)
-  )
+  if (replaced.length > 0) {
+    await store.demoteOthers(
+      request.roomId,
+      replaced,
+      new Date(request.now.getTime() + request.grace * 1000)
+    )
+  }
 
   return { rotated: true, code: minted.code }
 }

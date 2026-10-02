@@ -29,6 +29,7 @@ const MODELS = {
 } as const
 
 const HELD_CEILING = 200
+const ACTIVE_CODE_CEILING = 100
 
 type Input = Record<string, unknown>
 
@@ -326,13 +327,24 @@ export const rotationStore = (adapter: DBAdapter): RotationStore => ({
       update: { status: 'revoked', revokedAt: at }
     })
   },
-  demoteOthers: async (roomId, issuedAt, until) => {
+  activeCodes: async roomId =>
+    (
+      await adapter.findMany<CodeRow>({
+        model: MODELS.code,
+        where: [
+          { field: 'roomId', value: roomId },
+          { field: 'status', value: 'active' }
+        ],
+        limit: ACTIVE_CODE_CEILING
+      })
+    ).map(row => row.id),
+  demoteOthers: async (roomId, codeIds, until) => {
     await adapter.updateMany({
       model: MODELS.code,
       where: [
         { field: 'roomId', value: roomId },
         { field: 'status', value: 'active' },
-        { field: 'createdAt', operator: 'lt', value: issuedAt }
+        { field: 'id', operator: 'in', value: codeIds }
       ],
       update: { status: 'grace', expiresAt: until }
     })
