@@ -1,5 +1,6 @@
 import { APIError } from 'better-auth/api'
 
+import type { AdditionRefusal } from '@/core/addition'
 import type { JoinRefusal } from '@/core/join'
 import type { RotationRefusal } from '@/core/rotation'
 
@@ -62,6 +63,14 @@ export const ROOM_ERROR_CODES = {
   UNKNOWN_ROOM: {
     code: 'UNKNOWN_ROOM',
     message: 'No such room'
+  },
+  ADDITION_IS_SERVER_ONLY: {
+    code: 'ADDITION_IS_SERVER_ONLY',
+    message: 'Adding a member is not exposed over http'
+  },
+  ALREADY_A_MEMBER: {
+    code: 'ALREADY_A_MEMBER',
+    message: 'The actor already holds a membership in this room'
   }
 } as const
 
@@ -104,6 +113,23 @@ const ROTATION_REFUSALS = {
 
 export const rotationError = (refusal: RotationRefusal) => {
   const [status, error] = ROTATION_REFUSALS[refusal]
+
+  return APIError.from(status, error)
+}
+
+export const additionServerOnlyError = () =>
+  APIError.from('FORBIDDEN', ROOM_ERROR_CODES.ADDITION_IS_SERVER_ONLY)
+
+const ADDITION_REFUSALS = {
+  'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  'already-a-member': ['CONFLICT', ROOM_ERROR_CODES.ALREADY_A_MEMBER],
+  'at-capacity': ['CONFLICT', ROOM_ERROR_CODES.ROOM_AT_CAPACITY],
+  closed: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_CLOSED],
+  expired: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_EXPIRED]
+} as const satisfies Record<AdditionRefusal, Refusal>
+
+export const additionError = (refusal: AdditionRefusal) => {
+  const [status, error] = ADDITION_REFUSALS[refusal]
 
   return APIError.from(status, error)
 }

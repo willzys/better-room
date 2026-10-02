@@ -6,9 +6,16 @@ import type { Actor } from '@/core/actor'
 import type { Membership, MembershipRefusal } from '@/core/membership'
 import type { Room, RoomRefusal } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
-import type { Unbounded, Usable } from '@/types/absence'
+import type { Perpetual, Unbounded, Usable } from '@/types/absence'
 
 const JOINED_ROLE = 'participant'
+
+export type Enrolment = {
+  readonly roomId: string
+  readonly actorId: string
+  readonly role: string
+  readonly expiresAt: Perpetual<Date>
+}
 
 export type JoinRefusal =
   | MembershipRefusal
@@ -24,11 +31,7 @@ export type JoinStore = {
     actorId: string
   ) => Promise<Usable<Membership>>
   readonly admit: (roomId: string, limit: Unbounded<number>) => Promise<boolean>
-  readonly enroll: (
-    roomId: string,
-    actorId: string,
-    role: string
-  ) => Promise<Membership>
+  readonly enroll: (member: Enrolment) => Promise<Membership>
   readonly reinstate: (membershipId: string) => Promise<Membership>
 }
 
@@ -92,7 +95,12 @@ export const join = async (
   return admit(
     actor,
     existing === null
-      ? await store.enroll(room.id, actor.id, JOINED_ROLE)
+      ? await store.enroll({
+          roomId: room.id,
+          actorId: actor.id,
+          role: JOINED_ROLE,
+          expiresAt: null
+        })
       : await store.reinstate(existing.id)
   )
 }

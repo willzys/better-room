@@ -3,6 +3,7 @@ import { APIError } from 'better-auth/api'
 import type { DBAdapter, Where } from 'better-auth/types'
 
 import type { Actor, ActorStore } from '@/core/actor'
+import type { AdditionStore } from '@/core/addition'
 import type { Attempt, AttemptStore } from '@/core/attempt'
 import type { CreationStore } from '@/core/creation'
 import type { JoinStore } from '@/core/join'
@@ -125,11 +126,16 @@ export const joinStore = (adapter: DBAdapter): JoinStore => ({
       where: capacityGuard(roomId, limit),
       increment: { memberCount: 1 }
     })) !== null,
-  enroll: async (roomId, actorId, role) =>
+  enroll: async member =>
     toMembership(
       await adapter.create<Input, MemberRow>({
         model: MODELS.member,
-        data: { roomId, actorId, role }
+        data: {
+          roomId: member.roomId,
+          actorId: member.actorId,
+          role: member.role,
+          expiresAt: member.expiresAt
+        }
       })
     ),
   reinstate: async membershipId => {
@@ -268,3 +274,14 @@ export const rotationStore = (adapter: DBAdapter): RotationStore => ({
     })
   }
 })
+
+export const additionStore = (adapter: DBAdapter): AdditionStore => {
+  const joins = joinStore(adapter)
+
+  return {
+    room: joins.room,
+    membership: joins.membership,
+    admit: joins.admit,
+    enroll: joins.enroll
+  }
+}
