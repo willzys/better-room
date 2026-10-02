@@ -5,8 +5,13 @@ import type { Membership } from '@/core/membership'
 import type { Room } from '@/core/room'
 import type { Usable } from '@/types/absence'
 
+export type HeldMemberships = {
+  readonly memberships: Membership[]
+  readonly complete: boolean
+}
+
 export type MembershipsStore = {
-  readonly held: (actorId: string) => Promise<Membership[]>
+  readonly held: (actorId: string, now: Date) => Promise<HeldMemberships>
   readonly rooms: (ids: string[]) => Promise<Room[]>
 }
 
@@ -20,26 +25,38 @@ export type Held = {
   readonly room: Room
 }
 
+export type Memberships = {
+  readonly held: Held[]
+  readonly complete: boolean
+}
+
 export const readMemberships = async (
   request: MembershipsRequest,
   store: MembershipsStore
-): Promise<Held[]> => {
-  if (request.actor === null) return []
+): Promise<Memberships> => {
+  if (request.actor === null) return { held: [], complete: true }
 
-  const held = await store.held(request.actor.id)
+  const standing = await store.held(request.actor.id, request.now)
 
-  if (held.length === 0) return []
+  if (standing.memberships.length === 0) {
+    return { held: [], complete: standing.complete }
+  }
 
-  const rooms = await store.rooms(held.map(membership => membership.roomId))
+  const rooms = await store.rooms(
+    standing.memberships.map(membership => membership.roomId)
+  )
   const byId = new Map(rooms.map(room => [room.id, room]))
 
-  return held.flatMap(membership => {
-    const room = byId.get(membership.roomId)
+  return {
+    held: standing.memberships.flatMap(membership => {
+      const room = byId.get(membership.roomId)
 
-    if (room === undefined || !isAuthorized(room, membership, request.now)) {
-      return []
-    }
+      if (room === undefined || !isAuthorized(room, membership, request.now)) {
+        return []
+      }
 
-    return [{ membership, room }]
-  })
+      return [{ membership, room }]
+    }),
+    complete: standing.complete
+  }
 }

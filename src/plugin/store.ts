@@ -296,20 +296,70 @@ export const accessStore = (adapter: DBAdapter): AccessStore => {
   return { room: joins.room, membership: joins.membership }
 }
 
+const standing = (actorId: string): Where[] => [
+  { field: 'actorId', value: actorId },
+  { field: 'leftAt', value: null },
+  { field: 'revokedAt', value: null }
+]
+
+const byRecency = (
+  left: readonly Membership[],
+  right: readonly Membership[]
+): Membership[] => {
+  const merged: Membership[] = []
+  let taken = 0
+  let other = 0
+
+  while (merged.length < HELD_CEILING) {
+    const mine = left[taken]
+    const theirs = right[other]
+
+    if (mine === undefined) {
+      if (theirs === undefined) break
+
+      merged.push(theirs)
+      other++
+    } else if (
+      theirs === undefined ||
+      mine.joinedAt.getTime() >= theirs.joinedAt.getTime()
+    ) {
+      merged.push(mine)
+      taken++
+    } else {
+      merged.push(theirs)
+      other++
+    }
+  }
+
+  return merged
+}
+
 export const membershipsStore = (adapter: DBAdapter): MembershipsStore => ({
-  held: async actorId =>
-    (
-      await adapter.findMany<MemberRow>({
+  held: async (actorId, now) => {
+    const page = (where: Where[]) =>
+      adapter.findMany<MemberRow>({
         model: MODELS.member,
-        where: [
-          { field: 'actorId', value: actorId },
-          { field: 'leftAt', value: null },
-          { field: 'revokedAt', value: null }
-        ],
+        where,
         sortBy: { field: 'joinedAt', direction: 'desc' },
         limit: HELD_CEILING
       })
-    ).map(toMembership),
+
+    const [perpetual, dated] = await Promise.all([
+      page([...standing(actorId), { field: 'expiresAt', value: null }]),
+      page([
+        ...standing(actorId),
+        { field: 'expiresAt', operator: 'gt', value: now }
+      ])
+    ])
+
+    return {
+      memberships: byRecency(
+        perpetual.map(toMembership),
+        dated.map(toMembership)
+      ),
+      complete: perpetual.length < HELD_CEILING && dated.length < HELD_CEILING
+    }
+  },
   rooms: async ids =>
     (
       await adapter.findMany<RoomRow>({

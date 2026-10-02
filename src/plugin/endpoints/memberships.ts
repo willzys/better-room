@@ -25,16 +25,17 @@ export const membershipsEndpoint = () =>
         actorStore(adapter)
       )
 
-      const held = await readMemberships(
+      const listed = await readMemberships(
         { actor, now },
         membershipsStore(adapter)
       )
 
       return ctx.json({
-        memberships: held.map(entry => ({
+        memberships: listed.held.map(entry => ({
           membership: membershipReport(entry.membership),
           room: roomReport(entry.room)
-        }))
+        })),
+        complete: listed.complete
       })
     }
   )
