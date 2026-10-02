@@ -53,27 +53,31 @@ const tryRecord = async (
   request: { key: string; limit: AttemptLimit; now: Date },
   store: AttemptStore,
   retries: number
-): Promise<void> => {
-  if (retries === 0) return
+): Promise<boolean> => {
+  if (retries === 0) return false
 
   const floor = new Date(request.now.getTime() - request.limit.window * 1000)
   const existing = await store.read(request.key)
 
   if (existing === null) {
-    if (await store.open(request.key, request.now)) return
+    if (await store.open(request.key, request.now)) return true
 
     return tryRecord(request, store, retries - 1)
   }
 
   if (elapsed(existing, request.limit, request.now)) {
     if (await store.restart(request.key, existing.lastAttemptAt, request.now)) {
-      return store.prune(floor)
+      await store.prune(floor)
+
+      return true
     }
 
     return tryRecord(request, store, retries - 1)
   }
 
-  await store.bump(request.key, floor, request.now)
+  if (await store.bump(request.key, floor, request.now)) return true
+
+  return tryRecord(request, store, retries - 1)
 }
 
 export const recordAttempt = (
