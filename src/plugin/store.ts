@@ -8,8 +8,9 @@ import type { Membership } from '@/core/membership'
 import type { AccessStore } from '@/core/operations/access'
 import type { AdditionStore } from '@/core/operations/addition'
 import type { CreationStore } from '@/core/operations/creation'
-import type { JoinStore } from '@/core/operations/join'
+import type { Enrolment, JoinStore, Seated } from '@/core/operations/join'
 import type { MembershipsStore } from '@/core/operations/memberships'
+import type { ReleaseStore } from '@/core/operations/release'
 import type { RotationStore } from '@/core/operations/rotation'
 import type { Room } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
@@ -55,7 +56,11 @@ const toCode = (row: CodeRow): RoomCode => ({
 })
 
 const toMembership = (row: MemberRow): Membership => ({
-  ...row,
+  id: row.id,
+  roomId: row.roomId,
+  actorId: row.actorId,
+  role: row.role,
+  joinedAt: row.joinedAt,
   expiresAt: row.expiresAt ?? null,
   leftAt: row.leftAt ?? null,
   revokedAt: row.revokedAt ?? null
@@ -67,6 +72,85 @@ const found = <Row, Value>(
 ): Usable<Value> => (row === null ? null : read(row))
 
 const byId = (id: string): Where[] => [{ field: 'id', value: id }]
+
+const OCCUPIED: Where = { field: 'occupancy', operator: 'gt', value: 0 }
+const VACATED: Where = { field: 'occupancy', value: 0 }
+
+const pairing = (roomId: string, actorId: string): Where[] => [
+  { field: 'roomId', value: roomId },
+  { field: 'actorId', value: actorId }
+]
+
+const enrolling =
+  (adapter: DBAdapter) =>
+  async (member: Enrolment): Promise<Seated> => {
+    try {
+      return {
+        membership: toMembership(
+          await adapter.create<Input, MemberRow>({
+            model: MODELS.member,
+            data: {
+              roomId: member.roomId,
+              actorId: member.actorId,
+              role: member.role,
+              expiresAt: member.expiresAt
+            }
+          })
+        ),
+        occupied: true
+      }
+    } catch (error) {
+      const taken = await adapter.findOne<MemberRow>({
+        model: MODELS.member,
+        where: pairing(member.roomId, member.actorId)
+      })
+
+      if (taken === null) throw error
+
+      return { membership: toMembership(taken), occupied: false }
+    }
+  }
+
+const reinstating =
+  (adapter: DBAdapter) =>
+  async (membershipId: string): Promise<Seated> => {
+    const reoccupied = await adapter.incrementOne<MemberRow>({
+      model: MODELS.member,
+      where: [...byId(membershipId), VACATED],
+      increment: { occupancy: 1 },
+      set: { leftAt: null, releasedAt: null }
+    })
+
+    if (reoccupied !== null) {
+      return { membership: toMembership(reoccupied), occupied: true }
+    }
+
+    const standing = await adapter.update<MemberRow>({
+      model: MODELS.member,
+      where: byId(membershipId),
+      update: { leftAt: null }
+    })
+
+    if (standing === null) {
+      throw new APIError('INTERNAL_SERVER_ERROR', {
+        code: 'MEMBERSHIP_VANISHED',
+        message: 'The membership disappeared while rejoining'
+      })
+    }
+
+    return { membership: toMembership(standing), occupied: false }
+  }
+
+const lowering = (adapter: DBAdapter) => async (roomId: string) => {
+  await adapter.incrementOne<RoomRow>({
+    model: MODELS.room,
+    where: [
+      ...byId(roomId),
+      { field: 'memberCount', operator: 'gt', value: 0 }
+    ],
+    increment: { memberCount: -1 }
+  })
+}
 
 const capacityGuard = (roomId: string, limit: Unbounded<number>): Where[] =>
   limit === null
@@ -117,10 +201,7 @@ export const joinStore = (adapter: DBAdapter): JoinStore => ({
     found(
       await adapter.findOne<MemberRow>({
         model: MODELS.member,
-        where: [
-          { field: 'roomId', value: roomId },
-          { field: 'actorId', value: actorId }
-        ]
+        where: pairing(roomId, actorId)
       }),
       toMembership
     ),
@@ -130,34 +211,9 @@ export const joinStore = (adapter: DBAdapter): JoinStore => ({
       where: capacityGuard(roomId, limit),
       increment: { memberCount: 1 }
     })) !== null,
-  enroll: async member =>
-    toMembership(
-      await adapter.create<Input, MemberRow>({
-        model: MODELS.member,
-        data: {
-          roomId: member.roomId,
-          actorId: member.actorId,
-          role: member.role,
-          expiresAt: member.expiresAt
-        }
-      })
-    ),
-  reinstate: async membershipId => {
-    const row = await adapter.update<MemberRow>({
-      model: MODELS.member,
-      where: byId(membershipId),
-      update: { leftAt: null }
-    })
-
-    if (row === null) {
-      throw new APIError('INTERNAL_SERVER_ERROR', {
-        code: 'MEMBERSHIP_VANISHED',
-        message: 'The membership disappeared while rejoining'
-      })
-    }
-
-    return toMembership(row)
-  }
+  enroll: enrolling(adapter),
+  reinstate: reinstating(adapter),
+  lowerCount: lowering(adapter)
 })
 
 export const attemptStore = (adapter: DBAdapter): AttemptStore => ({
@@ -286,7 +342,8 @@ export const additionStore = (adapter: DBAdapter): AdditionStore => {
     room: joins.room,
     membership: joins.membership,
     admit: joins.admit,
-    enroll: joins.enroll
+    enroll: joins.enroll,
+    lowerCount: joins.lowerCount
   }
 }
 
@@ -333,6 +390,17 @@ const byRecency = (
 
   return merged
 }
+
+export const releaseStore = (adapter: DBAdapter): ReleaseStore => ({
+  endOccupancy: async (membershipId, at) =>
+    (await adapter.incrementOne<MemberRow>({
+      model: MODELS.member,
+      where: [...byId(membershipId), OCCUPIED],
+      increment: { occupancy: -1 },
+      set: { releasedAt: at }
+    })) !== null,
+  lowerCount: lowering(adapter)
+})
 
 export const membershipsStore = (adapter: DBAdapter): MembershipsStore => ({
   held: async (actorId, now) => {
