@@ -1,6 +1,7 @@
 import { APIError } from 'better-auth/api'
 
 import type { JoinRefusal } from '@/core/join'
+import type { RotationRefusal } from '@/core/rotation'
 
 type RoomError = {
   readonly code: string
@@ -53,6 +54,14 @@ export const ROOM_ERROR_CODES = {
   CODE_SPACE_EXHAUSTED: {
     code: 'CODE_SPACE_EXHAUSTED',
     message: 'No free room code was found'
+  },
+  ROTATION_IS_SERVER_ONLY: {
+    code: 'ROTATION_IS_SERVER_ONLY',
+    message: 'Rotating a room code is not exposed over http'
+  },
+  UNKNOWN_ROOM: {
+    code: 'UNKNOWN_ROOM',
+    message: 'No such room'
   }
 } as const
 
@@ -83,3 +92,18 @@ export const unauthenticatedError = () =>
 
 export const exhaustedError = () =>
   APIError.from('SERVICE_UNAVAILABLE', ROOM_ERROR_CODES.CODE_SPACE_EXHAUSTED)
+
+export const rotationServerOnlyError = () =>
+  APIError.from('FORBIDDEN', ROOM_ERROR_CODES.ROTATION_IS_SERVER_ONLY)
+
+const ROTATION_REFUSALS = {
+  'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  closed: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_CLOSED],
+  exhausted: ['SERVICE_UNAVAILABLE', ROOM_ERROR_CODES.CODE_SPACE_EXHAUSTED]
+} as const satisfies Record<RotationRefusal, Refusal>
+
+export const rotationError = (refusal: RotationRefusal) => {
+  const [status, error] = ROTATION_REFUSALS[refusal]
+
+  return APIError.from(status, error)
+}

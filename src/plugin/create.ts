@@ -8,13 +8,12 @@ import {
   serverOnlyError,
   unauthenticatedError
 } from '@/plugin/errors'
+import { minter } from '@/plugin/mint'
 import { actorStore, creationStore } from '@/plugin/store'
-import { generate } from '@/security/code-format'
 
-import type { Minted } from '@/core/creation'
 import type { CodeFormat } from '@/security/code-format'
 import type { CodeIdentifier } from '@/security/code-identifier'
-import type { Unlinked, Usable } from '@/types/absence'
+import type { Unlinked } from '@/types/absence'
 
 const createBody = z.object({
   userId: z.string().optional().meta({
@@ -37,15 +36,6 @@ type CreateDeps = {
   readonly identify: (secret: string) => CodeIdentifier
   readonly overHttp: boolean
 }
-
-const minter =
-  (format: CodeFormat, identify: CodeIdentifier) =>
-  async (): Promise<Usable<Minted>> => {
-    const code = generate(format)
-    const identifier = await identify(code)
-
-    return identifier === null ? null : { code, identifier }
-  }
 
 export const createEndpoint = (deps: CreateDeps) =>
   createAuthEndpoint(
