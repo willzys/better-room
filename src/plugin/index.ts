@@ -5,6 +5,7 @@ import { joinEndpoint } from '@/plugin/endpoints/join'
 import { leaveEndpoint } from '@/plugin/endpoints/leave'
 import { lifecycleEndpoint } from '@/plugin/endpoints/lifecycle'
 import { membershipsEndpoint } from '@/plugin/endpoints/memberships'
+import { promoteEndpoint } from '@/plugin/endpoints/promote'
 import { reconcileEndpoint } from '@/plugin/endpoints/reconcile'
 import { revokeEndpoint } from '@/plugin/endpoints/revoke'
 import { rotateEndpoint } from '@/plugin/endpoints/rotate'
@@ -147,6 +148,7 @@ export const betterRoom = (options?: RoomOptions) => {
       joinRoom: joinEndpoint({ identify, grantLifetime, perIp, everyone }),
       leaveRoom: leaveEndpoint(),
       listRoomMemberships: membershipsEndpoint(),
+      promoteRoomActor: promoteEndpoint(),
       rotateRoomCode: rotateEndpoint({ format, identify, grace }),
       revokeRoomMember: revokeEndpoint(),
       lockRoom: lifecycleEndpoint('lock'),

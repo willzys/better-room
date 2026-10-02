@@ -12,6 +12,7 @@ import type { Enrolment, JoinStore, Seated } from '@/core/operations/join'
 import type { LeaveStore } from '@/core/operations/leave'
 import type { LifecycleStore } from '@/core/operations/lifecycle'
 import type { MembershipsStore } from '@/core/operations/memberships'
+import type { PromotionStore } from '@/core/operations/promotion'
 import type { ReconciliationStore } from '@/core/operations/reconciliation'
 import type { ReleaseStore } from '@/core/operations/release'
 import type { RevocationStore } from '@/core/operations/revocation'
@@ -492,6 +493,52 @@ export const lifecycleStore = (adapter: DBAdapter): LifecycleStore => ({
       toRoom
     )
 })
+
+export const promotionStore = (adapter: DBAdapter): PromotionStore => {
+  const actors = actorStore(adapter)
+  const joins = joinStore(adapter)
+
+  return {
+    ...releaseStore(adapter),
+    byId: actors.byId,
+    owner: async userId =>
+      (await actors.byUser(userId)) ?? (await actors.create(userId)),
+    invalidate: async (actorId, epoch) =>
+      (await adapter.incrementOne<ActorRow>({
+        model: MODELS.actor,
+        where: [...byId(actorId), { field: 'grantEpoch', value: epoch }],
+        increment: { grantEpoch: 1 }
+      })) !== null,
+    heldBy: async actorId =>
+      (
+        await adapter.findMany<MemberRow>({
+          model: MODELS.member,
+          where: [{ field: 'actorId', value: actorId }],
+          limit: HELD_CEILING
+        })
+      ).map(toMembership),
+    membership: joins.membership,
+    reassign: async (membershipId, actorId) => {
+      try {
+        return (
+          (await adapter.update<MemberRow>({
+            model: MODELS.member,
+            where: byId(membershipId),
+            update: { actorId }
+          })) !== null
+        )
+      } catch {
+        return false
+      }
+    },
+    discard: async membershipId => {
+      await adapter.delete({ model: MODELS.member, where: byId(membershipId) })
+    },
+    forget: async actorId => {
+      await adapter.delete({ model: MODELS.actor, where: byId(actorId) })
+    }
+  }
+}
 
 export const releaseStore = (adapter: DBAdapter): ReleaseStore => ({
   endOccupancy: async (membershipId, at) =>
