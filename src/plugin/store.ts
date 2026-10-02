@@ -1,4 +1,5 @@
 import { APIError } from 'better-auth/api'
+
 import type { DBAdapter, Where } from 'better-auth/types'
 
 import type { Actor, ActorStore } from '@/core/actor'

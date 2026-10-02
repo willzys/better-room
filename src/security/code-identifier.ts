@@ -1,4 +1,5 @@
 import { normalize } from '@/security/code-format'
+
 import type { CodeFormat } from '@/security/code-format'
 import type { Usable } from '@/types/absence'
 

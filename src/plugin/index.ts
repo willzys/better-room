@@ -1,13 +1,14 @@
-import type { BetterAuthPlugin } from 'better-auth/types'
-
 import { ROOM_ERROR_CODES } from '@/plugin/errors'
 import { joinEndpoint } from '@/plugin/join'
-import type { RoomSchemaOption } from '@/plugin/schema'
 import { createRoomSchema } from '@/plugin/schema'
-import type { CodeFormatName } from '@/security/code-format'
 import { codeFormat } from '@/security/code-format'
-import type { CodeIdentifier } from '@/security/code-identifier'
 import { codeIdentifier } from '@/security/code-identifier'
+
+import type { BetterAuthPlugin } from 'better-auth/types'
+
+import type { RoomSchemaOption } from '@/plugin/schema'
+import type { CodeFormatName } from '@/security/code-format'
+import type { CodeIdentifier } from '@/security/code-identifier'
 
 const DEFAULT_GRANT_LIFETIME = 60 * 60 * 24 * 7
 const MAX_GRANT_LIFETIME = 60 * 60 * 24 * 400

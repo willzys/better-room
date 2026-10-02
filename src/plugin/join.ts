@@ -1,13 +1,14 @@
 import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
 import * as z from 'zod'
 
-import type { ActorClaim } from '@/core/actor'
 import { resolveActor } from '@/core/actor'
 import { join } from '@/core/join'
 import { refusalError } from '@/plugin/errors'
 import { actorStore, joinStore } from '@/plugin/store'
-import type { CodeIdentifier } from '@/security/code-identifier'
 import { decodeGrant, encodeGrant, isLive } from '@/security/grant'
+
+import type { ActorClaim } from '@/core/actor'
+import type { CodeIdentifier } from '@/security/code-identifier'
 import type { Usable } from '@/types/absence'
 
 const GRANT_COOKIE = 'room_grant'

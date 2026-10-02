@@ -1,10 +1,11 @@
+import { membershipRefusal } from '@/core/membership'
+import { roomRefusal } from '@/core/room'
+import { isResolvable } from '@/core/room-code'
+
 import type { Actor } from '@/core/actor'
 import type { Membership, MembershipRefusal } from '@/core/membership'
-import { membershipRefusal } from '@/core/membership'
 import type { Room, RoomRefusal } from '@/core/room'
-import { roomRefusal } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
-import { isResolvable } from '@/core/room-code'
 import type { Unbounded, Usable } from '@/types/absence'
 
 const JOINED_ROLE = 'participant'
