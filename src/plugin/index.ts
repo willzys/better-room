@@ -1,3 +1,4 @@
+import { accessEndpoint } from '@/plugin/access'
 import { addEndpoint } from '@/plugin/add'
 import { createEndpoint } from '@/plugin/create'
 import { ROOM_ERROR_CODES } from '@/plugin/errors'
@@ -136,6 +137,7 @@ export const betterRoom = (options?: RoomOptions) => {
     },
     endpoints: {
       addRoomMember: addEndpoint(),
+      getRoomAccess: accessEndpoint(),
       createRoom: createEndpoint({ format, identify, overHttp }),
       joinRoom: joinEndpoint({ identify, grantLifetime, perIp, everyone }),
       rotateRoomCode: rotateEndpoint({ format, identify, grace })

@@ -2,6 +2,7 @@ import { APIError } from 'better-auth/api'
 
 import type { DBAdapter, Where } from 'better-auth/types'
 
+import type { AccessStore } from '@/core/access'
 import type { Actor, ActorStore } from '@/core/actor'
 import type { AdditionStore } from '@/core/addition'
 import type { Attempt, AttemptStore } from '@/core/attempt'
@@ -284,4 +285,10 @@ export const additionStore = (adapter: DBAdapter): AdditionStore => {
     admit: joins.admit,
     enroll: joins.enroll
   }
+}
+
+export const accessStore = (adapter: DBAdapter): AccessStore => {
+  const joins = joinStore(adapter)
+
+  return { room: joins.room, membership: joins.membership }
 }
