@@ -62,7 +62,7 @@ const actorFor = (
 
 export const addEndpoint = () =>
   createAuthEndpoint(
-    '/room/add-member',
+    '/better-room/add-member',
     { method: 'POST', body: addBody },
     async ctx => {
       if (ctx.request !== undefined) throw additionServerOnlyError()

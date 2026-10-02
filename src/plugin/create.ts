@@ -39,7 +39,7 @@ type CreateDeps = {
 
 export const createEndpoint = (deps: CreateDeps) =>
   createAuthEndpoint(
-    '/room/create',
+    '/better-room/create',
     { method: 'POST', body: createBody },
     async ctx => {
       const { adapter, secret } = ctx.context
