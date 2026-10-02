@@ -4,7 +4,7 @@ import { ROOM_ERROR_CODES } from '@/plugin/errors'
 import { joinEndpoint } from '@/plugin/join'
 import { rotateEndpoint } from '@/plugin/rotate'
 import { createRoomSchema } from '@/plugin/schema'
-import { codeFormat } from '@/security/code-format'
+import { codeFormat, generate } from '@/security/code-format'
 import { codeIdentifier } from '@/security/code-identifier'
 
 import type { BetterAuthPlugin } from 'better-auth/types'
@@ -131,6 +131,9 @@ export const betterRoom = (options?: RoomOptions) => {
 
   return {
     id: 'better-room',
+    init: async context => {
+      await identify(context.secret)(generate(format))
+    },
     endpoints: {
       addRoomMember: addEndpoint(),
       createRoom: createEndpoint({ format, identify, overHttp }),
