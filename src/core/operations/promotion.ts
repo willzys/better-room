@@ -69,6 +69,44 @@ const carry = async (
   return false
 }
 
+const MAX_PASSES = 50
+
+type Sweeping = {
+  readonly actorId: string
+  readonly carried: number
+  readonly discarded: number
+  readonly passes: number
+}
+
+const sweep = async (
+  owner: Actor,
+  now: Date,
+  store: PromotionStore,
+  state: Sweeping
+): Promise<{ carried: number; discarded: number; emptied: boolean }> => {
+  const held = state.passes === 0 ? [] : await store.heldBy(state.actorId)
+
+  if (held.length === 0) {
+    return {
+      carried: state.carried,
+      discarded: state.discarded,
+      emptied: state.passes > 0
+    }
+  }
+
+  const settled = await Promise.all(
+    held.map(membership => carry(membership, owner, now, store))
+  )
+  const carried = settled.filter(Boolean).length
+
+  return sweep(owner, now, store, {
+    actorId: state.actorId,
+    carried: state.carried + carried,
+    discarded: state.discarded + (settled.length - carried),
+    passes: state.passes - 1
+  })
+}
+
 export const promote = async (
   request: PromotionRequest,
   store: PromotionStore
@@ -87,19 +125,19 @@ export const promote = async (
     return refuse('stale-grant')
   }
 
-  const held = await store.heldBy(anonymous.id)
-  const settled = await Promise.all(
-    held.map(membership => carry(membership, owner, request.now, store))
-  )
+  const moved = await sweep(owner, request.now, store, {
+    actorId: anonymous.id,
+    carried: 0,
+    discarded: 0,
+    passes: MAX_PASSES
+  })
 
-  await store.forget(anonymous.id)
-
-  const carried = settled.filter(Boolean).length
+  if (moved.emptied) await store.forget(anonymous.id)
 
   return {
     promoted: true,
     actor: owner,
-    carried,
-    discarded: settled.length - carried
+    carried: moved.carried,
+    discarded: moved.discarded
   }
 }
