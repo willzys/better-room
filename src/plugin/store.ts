@@ -433,6 +433,54 @@ export const revocationStore = (adapter: DBAdapter): RevocationStore => {
   }
 }
 
+export const reconciliationStore = (
+  adapter: DBAdapter
+): ReconciliationStore => ({
+  ...releaseStore(adapter),
+  owing: async (now, batch) => {
+    const owing = (where: Where[]) =>
+      adapter.findMany<MemberRow>({
+        model: MODELS.member,
+        where: [OCCUPIED, ...where],
+        limit: batch
+      })
+
+    const pages = await Promise.all([
+      owing([{ field: 'expiresAt', operator: 'lt', value: now }]),
+      owing([{ field: 'leftAt', operator: 'ne', value: null }]),
+      owing([{ field: 'revokedAt', operator: 'ne', value: null }])
+    ])
+
+    const seen = new Map<string, Membership>()
+
+    for (const page of pages) {
+      for (const row of page) {
+        if (seen.size >= batch) break
+
+        seen.set(row.id, toMembership(row))
+      }
+    }
+
+    return [...seen.values()]
+  }
+})
+
+export const lifecycleStore = (adapter: DBAdapter): LifecycleStore => ({
+  room: rotationStore(adapter).room,
+  settle: async (roomId, status) =>
+    found(
+      await adapter.update<RoomRow>({
+        model: MODELS.room,
+        where: [
+          ...byId(roomId),
+          { field: 'status', operator: 'ne', value: 'closed' }
+        ],
+        update: { status }
+      }),
+      toRoom
+    )
+})
+
 export const releaseStore = (adapter: DBAdapter): ReleaseStore => ({
   endOccupancy: async (membershipId, at) =>
     (await adapter.incrementOne<MemberRow>({

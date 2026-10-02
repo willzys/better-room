@@ -148,7 +148,11 @@ export const betterRoom = (options?: RoomOptions) => {
       leaveRoom: leaveEndpoint(),
       listRoomMemberships: membershipsEndpoint(),
       rotateRoomCode: rotateEndpoint({ format, identify, grace }),
-      revokeRoomMember: revokeEndpoint()
+      revokeRoomMember: revokeEndpoint(),
+      lockRoom: lifecycleEndpoint('lock'),
+      unlockRoom: lifecycleEndpoint('unlock'),
+      closeRoom: lifecycleEndpoint('close'),
+      reconcileRoomCapacity: reconcileEndpoint()
     },
     schema: createRoomSchema(options?.schema),
     $ERROR_CODES: ROOM_ERROR_CODES
