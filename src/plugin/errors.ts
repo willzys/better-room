@@ -41,6 +41,18 @@ export const ROOM_ERROR_CODES = {
   TOO_MANY_ATTEMPTS: {
     code: 'TOO_MANY_ATTEMPTS',
     message: 'Too many room codes have been tried'
+  },
+  CREATION_IS_SERVER_ONLY: {
+    code: 'CREATION_IS_SERVER_ONLY',
+    message: 'Room creation is not exposed over http'
+  },
+  CREATION_NEEDS_A_SESSION: {
+    code: 'CREATION_NEEDS_A_SESSION',
+    message: 'Room creation over http requires an authenticated caller'
+  },
+  CODE_SPACE_EXHAUSTED: {
+    code: 'CODE_SPACE_EXHAUSTED',
+    message: 'No free room code was found'
   }
 } as const
 
@@ -62,3 +74,12 @@ export const refusalError = (refusal: JoinRefusal) => {
 
 export const attemptError = () =>
   APIError.from('TOO_MANY_REQUESTS', ROOM_ERROR_CODES.TOO_MANY_ATTEMPTS)
+
+export const serverOnlyError = () =>
+  APIError.from('FORBIDDEN', ROOM_ERROR_CODES.CREATION_IS_SERVER_ONLY)
+
+export const unauthenticatedError = () =>
+  APIError.from('UNAUTHORIZED', ROOM_ERROR_CODES.CREATION_NEEDS_A_SESSION)
+
+export const exhaustedError = () =>
+  APIError.from('SERVICE_UNAVAILABLE', ROOM_ERROR_CODES.CODE_SPACE_EXHAUSTED)

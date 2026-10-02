@@ -1,3 +1,4 @@
+import { createEndpoint } from '@/plugin/create'
 import { ROOM_ERROR_CODES } from '@/plugin/errors'
 import { joinEndpoint } from '@/plugin/join'
 import { createRoomSchema } from '@/plugin/schema'
@@ -39,6 +40,9 @@ export type RoomOptions = {
   }
   readonly grant?: {
     readonly lifetime?: number
+  }
+  readonly creation?: {
+    readonly overHttp?: boolean
   }
   readonly attempts?: {
     readonly window?: number
@@ -91,26 +95,30 @@ const limitsOf = (attempts: RoomOptions['attempts']) => {
   }
 }
 
-export const betterRoom = (options?: RoomOptions) => {
-  const format = codeFormat(
-    options?.code?.format ?? 'crockford',
-    options?.code?.length
-  )
+const formatOf = (code: RoomOptions['code']) =>
+  codeFormat(code?.format ?? 'crockford', code?.length)
 
-  const grantLifetime = grantLifetimeOf(options?.grant?.lifetime)
-  const { perIp, everyone } = limitsOf(options?.attempts)
+const settingsOf = (options?: RoomOptions) => ({
+  format: formatOf(options?.code),
+  grantLifetime: grantLifetimeOf(options?.grant?.lifetime),
+  overHttp: options?.creation?.overHttp ?? false,
+  ...limitsOf(options?.attempts)
+})
+
+export const betterRoom = (options?: RoomOptions) => {
+  const { format, grantLifetime, overHttp, perIp, everyone } =
+    settingsOf(options)
 
   let identifier: CodeIdentifier | undefined
+
+  const identify = (secret: string) =>
+    (identifier ??= codeIdentifier({ format, secret }))
 
   return {
     id: 'better-room',
     endpoints: {
-      joinRoom: joinEndpoint({
-        identify: secret => (identifier ??= codeIdentifier({ format, secret })),
-        grantLifetime,
-        perIp,
-        everyone
-      })
+      createRoom: createEndpoint({ format, identify, overHttp }),
+      joinRoom: joinEndpoint({ identify, grantLifetime, perIp, everyone })
     },
     schema: createRoomSchema(options?.schema),
     $ERROR_CODES: ROOM_ERROR_CODES

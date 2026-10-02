@@ -4,6 +4,7 @@ import type { DBAdapter, Where } from 'better-auth/types'
 
 import type { Actor, ActorStore } from '@/core/actor'
 import type { Attempt, AttemptStore } from '@/core/attempt'
+import type { CreationStore } from '@/core/creation'
 import type { JoinStore } from '@/core/join'
 import type { Membership } from '@/core/membership'
 import type { Room } from '@/core/room'
@@ -196,5 +197,39 @@ export const attemptStore = (adapter: DBAdapter): AttemptStore => ({
       model: MODELS.attempt,
       where: [{ field: 'lastAttemptAt', operator: 'lt', value: before }]
     })
+  }
+})
+
+export const creationStore = (adapter: DBAdapter): CreationStore => ({
+  openRoom: async room =>
+    toRoom(
+      await adapter.create<Input, RoomRow>({
+        model: MODELS.room,
+        data: {
+          createdBy: room.createdBy,
+          maxMembers: room.maxMembers,
+          expiresAt: room.expiresAt
+        }
+      })
+    ),
+  issueCode: async (identifier, roomId, at) => {
+    try {
+      await adapter.create<Input, CodeRow>({
+        model: MODELS.code,
+        data: { id: identifier, roomId, status: 'active', createdAt: at },
+        forceAllowId: true
+      })
+
+      return true
+    } catch (error) {
+      const taken = await adapter.findOne<CodeRow>({
+        model: MODELS.code,
+        where: byId(identifier)
+      })
+
+      if (taken === null) throw error
+
+      return false
+    }
   }
 })
