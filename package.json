@@ -2,7 +2,23 @@
   "name": "better-room",
   "version": "0.0.0",
   "description": "room-scoped contextual authorization plugin for better auth",
+  "keywords": [
+    "anonymous",
+    "authorization",
+    "better-auth",
+    "better-auth-plugin",
+    "room-code",
+    "rooms"
+  ],
+  "homepage": "https://github.com/willzys/better-room#readme",
+  "bugs": {
+    "url": "https://github.com/willzys/better-room/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/willzys/better-room.git"
+  },
   "files": [
     "dist"
   ],
