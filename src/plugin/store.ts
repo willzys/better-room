@@ -9,6 +9,7 @@ import type { Attempt, AttemptStore } from '@/core/attempt'
 import type { CreationStore } from '@/core/creation'
 import type { JoinStore } from '@/core/join'
 import type { Membership } from '@/core/membership'
+import type { MembershipsStore } from '@/core/memberships'
 import type { Room } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
 import type { RotationStore } from '@/core/rotation'
@@ -21,6 +22,8 @@ const MODELS = {
   member: 'roomMember',
   attempt: 'roomAttempt'
 } as const
+
+const HELD_CEILING = 200
 
 type Input = Record<string, unknown>
 
@@ -292,3 +295,27 @@ export const accessStore = (adapter: DBAdapter): AccessStore => {
 
   return { room: joins.room, membership: joins.membership }
 }
+
+export const membershipsStore = (adapter: DBAdapter): MembershipsStore => ({
+  held: async actorId =>
+    (
+      await adapter.findMany<MemberRow>({
+        model: MODELS.member,
+        where: [
+          { field: 'actorId', value: actorId },
+          { field: 'leftAt', value: null },
+          { field: 'revokedAt', value: null }
+        ],
+        sortBy: { field: 'joinedAt', direction: 'desc' },
+        limit: HELD_CEILING
+      })
+    ).map(toMembership),
+  rooms: async ids =>
+    (
+      await adapter.findMany<RoomRow>({
+        model: MODELS.room,
+        where: [{ field: 'id', operator: 'in', value: ids }],
+        limit: ids.length
+      })
+    ).map(toRoom)
+})
