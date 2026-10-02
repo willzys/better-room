@@ -899,7 +899,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^26.6.4":
+"@types/bun@npm:^1.4.2":
+  version: 1.4.2
+  resolution: "@types/bun@npm:1.4.2"
+  dependencies:
+    bun-types: "npm:1.4.2"
+  checksum: 10c0/f22456d26f2330ab8f9ea351695218db0dc05911281b7c12b609ed89d7050bac18a0f8400ae0996756fe9651e12fb3200527dcfae53f0ddb9265e860bf0b3099
+  languageName: node
+  linkType: hard
+
+"@types/node@npm:*, @types/node@npm:^26.6.4":
   version: 26.6.4
   resolution: "@types/node@npm:26.6.4"
   dependencies:
@@ -1245,6 +1254,7 @@ __metadata:
   dependencies:
     "@commitlint/cli": "npm:^21.2.3"
     "@commitlint/config-conventional": "npm:^21.2.3"
+    "@types/bun": "npm:^1.4.2"
     "@types/node": "npm:^26.6.4"
     better-auth: "npm:^1.7.7"
     oxfmt: "npm:^0.71.0"
@@ -1254,6 +1264,7 @@ __metadata:
     tsdown: "npm:^0.23.0"
     typescript: "npm:^5.9.3"
     ultracite: "npm:^7.12.2"
+    zod: "npm:^4.6.5"
   peerDependencies:
     better-auth: ^1.7.7
   languageName: unknown
@@ -1265,6 +1276,15 @@ __metadata:
   dependencies:
     fill-range: "npm:^7.1.1"
   checksum: 10c0/7c6dfd30c338d2997ba77500539227b9d1f85e388a5f43220865201e407e076783d0881f2d297b9f80951b4c957fcf0b51c1d2d24227631643c3f7c284b0aa04
+  languageName: node
+  linkType: hard
+
+"bun-types@npm:1.4.2":
+  version: 1.4.2
+  resolution: "bun-types@npm:1.4.2"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/5044ca70b666567a258bcf48f516af2850e80091ccc3cacbf893852ece027007bc0fcf3424a59e97d5dba327ebcd5732ef9363a1d653d57ce2474f05526f40e3
   languageName: node
   linkType: hard
 
