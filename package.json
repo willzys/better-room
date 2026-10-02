@@ -37,12 +37,15 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint",
-    "lint:fix": "oxlint --fix",
-    "format": "oxfmt",
-    "format:check": "oxfmt --check",
+    "lint": "bun tests/check.ts lint",
+    "lint:fix": "bun tests/check.ts lint --fix",
+    "format": "bun tests/check.ts format",
+    "format:check": "bun tests/check.ts format --check",
     "prepare": "simple-git-hooks",
-    "test": "bun test"
+    "test": "bun test",
+    "test:unit": "bun test tests/unit",
+    "test:integration": "bun test tests/integration",
+    "test:generate": "bun tests/integration/prisma/generate.ts"
   },
   "dependencies": {
     "zod": "^4.6.5"
@@ -50,20 +53,31 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
     "better-auth": "^1.7.7",
+    "bun": "1.4.2",
     "drizzle-orm": "^0.45.3",
+    "embedded-postgres": "18.4.0-beta.17",
     "mongodb": "^7.7.0",
+    "mongodb-memory-server": "11.3.0",
     "oxfmt": "^0.71.0",
     "oxlint": "^1.86.0",
     "pg": "^8.23.1",
+    "prisma": "7.10.0",
     "publint": "^0.3.25",
     "simple-git-hooks": "^2.14.0",
     "tsdown": "^0.23.0",
     "typescript": "^5.9.3",
     "ultracite": "^7.12.2"
+  },
+  "dependenciesMeta": {
+    "bun": {
+      "built": true
+    }
   },
   "peerDependencies": {
     "better-auth": "^1.7.7"
