@@ -2,7 +2,7 @@ import { createAuthEndpoint, getIP, getSessionFromCtx } from 'better-auth/api'
 import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
-import { isBlocked, recordAttempt } from '@/core/attempt'
+import { isBlocked, isExhausted, recordAttempt } from '@/core/attempt'
 import { join } from '@/core/join'
 import { attemptError, refusalError } from '@/plugin/errors'
 import { actorStore, attemptStore, joinStore } from '@/plugin/store'
@@ -51,8 +51,10 @@ const grantFor = (actor: Actor, lifetime: number, now: Date) =>
     expiresAt: now.getTime() + lifetime * 1000
   })
 
-const addressOf = (request: Request | undefined, options: BetterAuthOptions) =>
-  request === undefined ? null : getIP(request, options)
+const addressOf = (
+  carrier: Headers | Request | undefined,
+  options: BetterAuthOptions
+) => (carrier === undefined ? null : getIP(carrier, options))
 
 const budgetsOf = (ip: Usable<string>, deps: JoinDeps): Budget[] =>
   ip === null
@@ -68,7 +70,9 @@ const blocked = async (
   store: AttemptStore,
   now: Date
 ) => {
-  if (ip === null) return false
+  if (ip === null) {
+    return isExhausted(await store.read(GLOBAL_KEY), deps.everyone, now)
+  }
 
   const [mine, everyone] = await Promise.all([
     store.read(`ip:${ip}`),
@@ -97,7 +101,7 @@ export const joinEndpoint = (deps: JoinDeps) =>
       const now = new Date()
       const { adapter, secret } = ctx.context
       const attempts = attemptStore(adapter)
-      const ip = addressOf(ctx.request, ctx.context.options)
+      const ip = addressOf(ctx.request ?? ctx.headers, ctx.context.options)
       const budgets = budgetsOf(ip, deps)
 
       if (await blocked(ip, deps, attempts, now)) throw attemptError()
