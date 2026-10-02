@@ -23,7 +23,7 @@ export const reconcile = async (
 ): Promise<Reconciliation> => {
   const owing = await store.owing(request.now, request.batch)
   const settled = await Promise.all(
-    owing.map(membership => release(membership, request.now, store))
+    owing.map(membership => release(membership, request.now, store, 'none'))
   )
 
   return {

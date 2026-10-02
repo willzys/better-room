@@ -50,7 +50,7 @@ export const revokeMember = async (
 
   const withdrawn = await store.revoke(held.id, request.now)
 
-  await release(held, request.now, store)
+  await release(held, request.now, store, 'none')
 
   return { revoked: true, membership: withdrawn ?? held }
 }

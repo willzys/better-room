@@ -131,10 +131,9 @@ const reinstating =
       return { membership: toMembership(reoccupied), occupied: true }
     }
 
-    const standing = await adapter.update<MemberRow>({
+    const standing = await adapter.findOne<MemberRow>({
       model: MODELS.member,
-      where: byId(membershipId),
-      update: { leftAt: null }
+      where: byId(membershipId)
     })
 
     if (standing === null) {
@@ -414,16 +413,7 @@ export const leaveStore = (adapter: DBAdapter): LeaveStore => {
   return {
     ...releaseStore(adapter),
     room: joins.room,
-    membership: joins.membership,
-    withdraw: async (membershipId, at) =>
-      found(
-        await adapter.update<MemberRow>({
-          model: MODELS.member,
-          where: [...byId(membershipId), { field: 'leftAt', value: null }],
-          update: { leftAt: at }
-        }),
-        toMembership
-      )
+    membership: joins.membership
   }
 }
 
@@ -518,7 +508,7 @@ export const promotionStore = (adapter: DBAdapter): PromotionStore => {
         })
       ).map(toMembership),
     membership: joins.membership,
-    reassign: async (membershipId, actorId) => {
+    reassign: async (membershipId, _roomId, actorId) => {
       try {
         return (
           (await adapter.update<MemberRow>({
@@ -541,12 +531,15 @@ export const promotionStore = (adapter: DBAdapter): PromotionStore => {
 }
 
 export const releaseStore = (adapter: DBAdapter): ReleaseStore => ({
-  endOccupancy: async (membershipId, at) =>
+  endOccupancy: async (membershipId, at, withdrawal) =>
     (await adapter.incrementOne<MemberRow>({
       model: MODELS.member,
       where: [...byId(membershipId), OCCUPIED],
       increment: { occupancy: -1 },
-      set: { releasedAt: at }
+      set:
+        withdrawal === 'left'
+          ? { releasedAt: at, leftAt: at }
+          : { releasedAt: at }
     })) !== null,
   lowerCount: lowering(adapter)
 })
