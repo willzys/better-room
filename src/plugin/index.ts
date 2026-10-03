@@ -9,6 +9,7 @@ import { promoteEndpoint } from '@/plugin/endpoints/post/promote'
 import { reconcileEndpoint } from '@/plugin/endpoints/post/reconcile'
 import { revokeEndpoint } from '@/plugin/endpoints/post/revoke'
 import { rotateEndpoint } from '@/plugin/endpoints/post/rotate'
+import { erasureHooks } from '@/plugin/erasure'
 import { ROOM_ERROR_CODES } from '@/plugin/error-codes'
 import { settingsOf } from '@/plugin/options'
 import { createRoomSchema } from '@/plugin/schema'
@@ -33,6 +34,8 @@ export const betterRoom = (options?: RoomOptions) => {
     id: 'better-room',
     init: async context => {
       await identify(context.secret)(generate(format))
+
+      return { options: { databaseHooks: erasureHooks(context.adapter) } }
     },
     endpoints: {
       addRoomMember: addEndpoint(),

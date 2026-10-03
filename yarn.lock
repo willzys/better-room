@@ -51,7 +51,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@better-auth/core@npm:1.7.7":
+"@better-auth/core@npm:1.7.7, @better-auth/core@npm:^1.7.7":
   version: 1.7.7
   resolution: "@better-auth/core@npm:1.7.7"
   dependencies:
@@ -2123,6 +2123,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "better-room@workspace:."
   dependencies:
+    "@better-auth/core": "npm:^1.7.7"
     "@commitlint/cli": "npm:^21.2.3"
     "@commitlint/config-conventional": "npm:^21.2.3"
     "@prisma/adapter-pg": "npm:7.10.0"
@@ -2147,6 +2148,7 @@ __metadata:
     ultracite: "npm:^7.12.2"
     zod: "npm:^4.6.5"
   peerDependencies:
+    "@better-auth/core": ^1.7.7
     better-auth: ^1.7.7
   dependenciesMeta:
     bun:

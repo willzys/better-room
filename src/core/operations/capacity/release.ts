@@ -23,3 +23,16 @@ export const release = async (
 
   return true
 }
+
+export type DiscardStore = ReleaseStore & {
+  readonly discard: (membershipId: string) => Promise<void>
+}
+
+export const relinquish = async (
+  membership: Pick<Membership, 'id' | 'roomId'>,
+  at: Date,
+  store: DiscardStore
+) => {
+  await release(membership, at, store, 'none')
+  await store.discard(membership.id)
+}

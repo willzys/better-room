@@ -25,7 +25,7 @@ const actorTable = () =>
         type: 'string',
         required: false,
         unique: true,
-        references: { model: 'user', field: 'id', onDelete: 'cascade' }
+        references: { model: 'user', field: 'id', onDelete: 'set null' }
       },
       grantEpoch: {
         type: 'number',
