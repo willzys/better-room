@@ -9,8 +9,6 @@ on:
 permissions:
   contents: read
 
-# A newer commit supersedes an older one on a pull request, but every commit
-# that lands on the trunk has to be verified on its own.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

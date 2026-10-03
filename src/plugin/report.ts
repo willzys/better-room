@@ -1,5 +1,5 @@
 import type { Membership } from '@/core/membership'
-import type { Promoted } from '@/core/operations/promotion'
+import type { Promoted } from '@/core/operations/identity/promotion'
 import type { Room, RoomStatus } from '@/core/room'
 import type { Pending, Perpetual, Unbounded, Unlinked } from '@/types/absence'
 

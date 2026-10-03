@@ -1,9 +1,9 @@
 import { membershipRefusal } from '@/core/membership'
-import { release } from '@/core/operations/release'
+import { release } from '@/core/operations/capacity/release'
 
 import type { Actor } from '@/core/actor'
 import type { Membership, MembershipRefusal } from '@/core/membership'
-import type { ReleaseStore } from '@/core/operations/release'
+import type { ReleaseStore } from '@/core/operations/capacity/release'
 import type { Room } from '@/core/room'
 import type { Usable } from '@/types/absence'
 

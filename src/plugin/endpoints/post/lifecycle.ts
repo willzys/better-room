@@ -1,12 +1,12 @@
 import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
-import { settleRoom } from '@/core/operations/lifecycle'
+import { settleRoom } from '@/core/operations/rooms/lifecycle'
 import { lifecycleError, lifecycleServerOnlyError } from '@/plugin/errors'
 import { roomReport } from '@/plugin/report'
-import { lifecycleStore } from '@/plugin/store'
+import { lifecycleStore } from '@/plugin/stores/rooms/lifecycle'
 
-import type { Transition } from '@/core/operations/lifecycle'
+import type { Transition } from '@/core/operations/rooms/lifecycle'
 
 const lifecycleBody = z.object({
   roomId: z.string().meta({ description: 'The room whose state changes' })

@@ -1,10 +1,11 @@
 import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
 
 import { findActor } from '@/core/actor'
-import { readMemberships } from '@/core/operations/memberships'
+import { readMemberships } from '@/core/operations/reads/memberships'
 import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
 import { membershipReport, roomReport } from '@/plugin/report'
-import { actorStore, membershipsStore } from '@/plugin/store'
+import { actorStore } from '@/plugin/stores/identity/actor'
+import { membershipsStore } from '@/plugin/stores/reads/memberships'
 
 export const membershipsEndpoint = () =>
   createAuthEndpoint(

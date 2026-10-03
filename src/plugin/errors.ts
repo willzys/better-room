@@ -1,12 +1,12 @@
 import { APIError } from 'better-auth/api'
 
-import type { AdditionRefusal } from '@/core/operations/addition'
-import type { JoinRefusal } from '@/core/operations/join'
-import type { LeaveRefusal } from '@/core/operations/leave'
-import type { LifecycleRefusal } from '@/core/operations/lifecycle'
-import type { PromotionRefusal } from '@/core/operations/promotion'
-import type { RevocationRefusal } from '@/core/operations/revocation'
-import type { RotationRefusal } from '@/core/operations/rotation'
+import type { AdditionRefusal } from '@/core/operations/admission/addition'
+import type { JoinRefusal } from '@/core/operations/admission/join'
+import type { LeaveRefusal } from '@/core/operations/capacity/leave'
+import type { RevocationRefusal } from '@/core/operations/capacity/revocation'
+import type { RotationRefusal } from '@/core/operations/codes/rotation'
+import type { PromotionRefusal } from '@/core/operations/identity/promotion'
+import type { LifecycleRefusal } from '@/core/operations/rooms/lifecycle'
 
 type RoomError = {
   readonly code: string

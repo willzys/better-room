@@ -1,7 +1,7 @@
 import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
 import * as z from 'zod'
 
-import { promote } from '@/core/operations/promotion'
+import { promote } from '@/core/operations/identity/promotion'
 import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
 import {
   noGrantToPromoteError,
@@ -11,7 +11,7 @@ import {
   resumeNeedsBothNamesError
 } from '@/plugin/errors'
 import { promotionReport } from '@/plugin/report'
-import { promotionStore } from '@/plugin/store'
+import { promotionStore } from '@/plugin/stores/identity/promotion'
 
 const promoteBody = z
   .object({

@@ -1,7 +1,7 @@
-import { release } from '@/core/operations/release'
+import { release } from '@/core/operations/capacity/release'
 
 import type { Membership } from '@/core/membership'
-import type { ReleaseStore } from '@/core/operations/release'
+import type { ReleaseStore } from '@/core/operations/capacity/release'
 
 export type ReconciliationStore = ReleaseStore & {
   readonly owing: (now: Date, batch: number) => Promise<Membership[]>
