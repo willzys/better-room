@@ -7,3 +7,5 @@ export const betterRoomClient = () =>
     id: 'better-room',
     $InferServerPlugin: {} as ReturnType<typeof betterRoom>
   }) satisfies BetterAuthClientPlugin
+
+export { ROOM_ERROR_CODES } from '@/plugin/error-codes'
