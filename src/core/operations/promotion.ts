@@ -28,20 +28,29 @@ export type PromotionStore = ReleaseStore & {
   readonly forget: (actorId: string) => Promise<void>
 }
 
+export type PromotionAuthority =
+  | { readonly kind: 'grant'; readonly epoch: number }
+  | { readonly kind: 'server' }
+
 export type PromotionRequest = {
   readonly userId: string
-  readonly claim: { readonly actorId: string; readonly epoch: number }
+  readonly actorId: string
+  readonly authority: PromotionAuthority
   readonly now: Date
+}
+
+export type Promoted = {
+  readonly promoted: true
+  readonly actor: Actor
+  readonly merged: string
+  readonly carried: number
+  readonly discarded: number
+  readonly complete: boolean
 }
 
 export type PromotionOutcome =
   | { readonly promoted: false; readonly refusal: PromotionRefusal }
-  | {
-      readonly promoted: true
-      readonly actor: Actor
-      readonly carried: number
-      readonly discarded: number
-    }
+  | Promoted
 
 const refuse = (refusal: PromotionRefusal): PromotionOutcome => ({
   promoted: false,
@@ -84,13 +93,17 @@ const sweep = async (
   store: PromotionStore,
   state: Sweeping
 ): Promise<{ carried: number; discarded: number; emptied: boolean }> => {
-  const held = state.passes === 0 ? [] : await store.heldBy(state.actorId)
+  const held = await store.heldBy(state.actorId)
 
   if (held.length === 0) {
+    return { carried: state.carried, discarded: state.discarded, emptied: true }
+  }
+
+  if (state.passes === 0) {
     return {
       carried: state.carried,
       discarded: state.discarded,
-      emptied: state.passes > 0
+      emptied: false
     }
   }
 
@@ -111,11 +124,17 @@ export const promote = async (
   request: PromotionRequest,
   store: PromotionStore
 ): Promise<PromotionOutcome> => {
-  const anonymous = await store.byId(request.claim.actorId)
+  const anonymous = await store.byId(request.actorId)
 
   if (anonymous === null) return refuse('unknown-actor')
   if (anonymous.userId !== null) return refuse('already-linked')
-  if (anonymous.grantEpoch !== request.claim.epoch) return refuse('stale-grant')
+
+  if (
+    request.authority.kind === 'grant' &&
+    anonymous.grantEpoch !== request.authority.epoch
+  ) {
+    return refuse('stale-grant')
+  }
 
   const owner = await store.owner(request.userId)
 
@@ -137,7 +156,9 @@ export const promote = async (
   return {
     promoted: true,
     actor: owner,
+    merged: anonymous.id,
     carried: moved.carried,
-    discarded: moved.discarded
+    discarded: moved.discarded,
+    complete: moved.emptied
   }
 }

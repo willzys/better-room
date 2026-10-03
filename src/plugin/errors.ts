@@ -116,6 +116,14 @@ export const ROOM_ERROR_CODES = {
     code: 'ALREADY_LINKED',
     message: 'The actor already belongs to a user'
   },
+  RESUME_IS_SERVER_ONLY: {
+    code: 'RESUME_IS_SERVER_ONLY',
+    message: 'Resuming a promotion is not exposed over http'
+  },
+  RESUME_NEEDS_BOTH_NAMES: {
+    code: 'RESUME_NEEDS_BOTH_NAMES',
+    message: 'Resuming a promotion names both the actor and the user'
+  },
   GRANT_IS_STALE: {
     code: 'GRANT_IS_STALE',
     message: 'The grant no longer matches the actor it names'
@@ -255,6 +263,12 @@ export const promotionError = (refusal: PromotionRefusal) => {
 
 export const promotionNeedsASessionError = () =>
   APIError.from('UNAUTHORIZED', ROOM_ERROR_CODES.PROMOTION_NEEDS_A_SESSION)
+
+export const resumeIsServerOnlyError = () =>
+  APIError.from('FORBIDDEN', ROOM_ERROR_CODES.RESUME_IS_SERVER_ONLY)
+
+export const resumeNeedsBothNamesError = () =>
+  APIError.from('BAD_REQUEST', ROOM_ERROR_CODES.RESUME_NEEDS_BOTH_NAMES)
 
 export const noGrantToPromoteError = () =>
   APIError.from('BAD_REQUEST', ROOM_ERROR_CODES.NO_GRANT_TO_PROMOTE)

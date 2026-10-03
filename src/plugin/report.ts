@@ -1,4 +1,5 @@
 import type { Membership } from '@/core/membership'
+import type { Promoted } from '@/core/operations/promotion'
 import type { Room, RoomStatus } from '@/core/room'
 import type { Pending, Perpetual, Unbounded, Unlinked } from '@/types/absence'
 
@@ -23,6 +24,14 @@ export type MembershipReport = {
   readonly revokedAt: Pending<Date>
 }
 
+export type PromotionReport = {
+  readonly actorId: string
+  readonly merged: string
+  readonly carried: number
+  readonly discarded: number
+  readonly complete: boolean
+}
+
 export const roomReport = (room: Room): RoomReport => ({
   id: room.id,
   status: room.status,
@@ -42,4 +51,12 @@ export const membershipReport = (membership: Membership): MembershipReport => ({
   expiresAt: membership.expiresAt,
   leftAt: membership.leftAt,
   revokedAt: membership.revokedAt
+})
+
+export const promotionReport = (outcome: Promoted): PromotionReport => ({
+  actorId: outcome.actor.id,
+  merged: outcome.merged,
+  carried: outcome.carried,
+  discarded: outcome.discarded,
+  complete: outcome.complete
 })
