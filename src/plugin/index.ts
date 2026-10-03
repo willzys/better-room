@@ -1,5 +1,6 @@
 import { accessEndpoint } from '@/plugin/endpoints/get/access'
 import { membershipsEndpoint } from '@/plugin/endpoints/get/memberships'
+import { occupancyEndpoint } from '@/plugin/endpoints/get/occupancy'
 import { addEndpoint } from '@/plugin/endpoints/post/add'
 import { createEndpoint } from '@/plugin/endpoints/post/create'
 import { joinEndpoint } from '@/plugin/endpoints/post/join'
@@ -40,6 +41,7 @@ export const betterRoom = (options?: RoomOptions) => {
     endpoints: {
       addRoomMember: addEndpoint(),
       getRoomAccess: accessEndpoint(),
+      getRoomOccupancy: occupancyEndpoint(),
       createRoom: createEndpoint({ format, identify, overHttp }),
       joinRoom: joinEndpoint({ identify, grantLifetime, perIp, everyone }),
       leaveRoom: leaveEndpoint(),
