@@ -35,14 +35,14 @@ export const rotationStore = (adapter: DBAdapter): RotationStore => ({
         ],
         limit: ACTIVE_CODE_CEILING
       })
-    ).map(row => row.id),
+    ).map(row => row.identifier),
   demoteOthers: async (roomId, codeIds, until) => {
     await adapter.updateMany({
       model: MODELS.code,
       where: [
         { field: 'roomId', value: roomId },
         { field: 'status', value: 'active' },
-        { field: 'id', operator: 'in', value: codeIds }
+        { field: 'identifier', operator: 'in', value: codeIds }
       ],
       update: { status: 'grace', expiresAt: until }
     })

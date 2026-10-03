@@ -3,7 +3,7 @@ import type { Usable } from '@/types/absence'
 const MAX_RETRIES = 3
 
 export type Attempt = {
-  id: string
+  key: string
   count: number
   lastAttemptAt: Date
 }

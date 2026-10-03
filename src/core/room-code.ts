@@ -4,6 +4,7 @@ export type RoomCodeStatus = 'active' | 'grace' | 'revoked'
 
 export type RoomCode = {
   id: string
+  identifier: string
   roomId: string
   status: RoomCodeStatus
   expiresAt: Perpetual<Date>

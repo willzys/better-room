@@ -66,6 +66,11 @@ const roomTable = (additionalFields?: AdditionalFields) =>
 const codeTable = () =>
   ({
     fields: {
+      identifier: {
+        type: 'string',
+        required: true,
+        input: false
+      },
       roomId: {
         type: 'string',
         required: true,
@@ -81,6 +86,11 @@ const codeTable = () =>
       createdAt: timestamp()
     },
     indexes: [
+      {
+        fields: ['identifier'] as const,
+        unique: true,
+        name: 'room_code_identifier_uidx'
+      },
       {
         fields: ['roomId', 'status'] as const,
         name: 'room_code_room_status_idx'
@@ -133,6 +143,11 @@ const memberTable = (additionalFields?: AdditionalFields) =>
 const attemptTable = () =>
   ({
     fields: {
+      key: {
+        type: 'string',
+        required: true,
+        input: false
+      },
       count: {
         type: 'number',
         required: true,
@@ -143,7 +158,14 @@ const attemptTable = () =>
         required: true,
         index: true
       }
-    }
+    },
+    indexes: [
+      {
+        fields: ['key'] as const,
+        unique: true,
+        name: 'room_attempt_key_uidx'
+      }
+    ]
   }) satisfies RoomTable
 
 type BaseSchema = {
