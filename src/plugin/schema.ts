@@ -36,6 +36,8 @@ const extendedTable = <Table extends { fields: AdditionalFields }>(
   fields: extended(name, table.fields, extension?.additionalFields)
 })
 
+export const MAX_STORED_INTEGER = 2_147_483_647
+
 const timestamp = () =>
   ({
     type: 'date',
