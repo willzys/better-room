@@ -113,7 +113,7 @@ const enrolling =
 
       if (taken === null) throw error
 
-      return { membership: toMembership(taken), occupied: false }
+      return { membership: toMembership(taken), occupied: true }
     }
   }
 
@@ -304,7 +304,7 @@ const codeIssuer = (adapter: DBAdapter) => ({
 
       if (taken === null) throw error
 
-      return false
+      return taken.roomId === roomId
     }
   }
 })
@@ -532,6 +532,13 @@ export const promotionStore = (adapter: DBAdapter): PromotionStore => {
           })) !== null
         )
       } catch (error) {
+        const moved = await adapter.findOne<MemberRow>({
+          model: MODELS.member,
+          where: byId(membershipId)
+        })
+
+        if (moved?.actorId === actorId) return true
+
         const taken = await adapter.findOne<MemberRow>({
           model: MODELS.member,
           where: pairing(roomId, actorId)
