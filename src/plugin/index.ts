@@ -27,6 +27,7 @@ export const betterRoom = (options?: RoomOptions) => {
     settingsOf(options)
 
   let identifier: CodeIdentifier | undefined
+  let boundSecret: string | undefined
 
   const identify = (secret: string) =>
     (identifier ??= codeIdentifier({ format, secret }))
@@ -34,6 +35,13 @@ export const betterRoom = (options?: RoomOptions) => {
   return {
     id: 'better-room',
     init: async context => {
+      if (boundSecret !== undefined && boundSecret !== context.secret) {
+        throw new Error(
+          'better-room is already bound to an auth instance with another secret; call betterRoom() once per instance'
+        )
+      }
+
+      boundSecret = context.secret
       await identify(context.secret)(generate(format))
 
       return { options: { databaseHooks: erasureHooks(context.adapter) } }
