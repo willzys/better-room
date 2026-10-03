@@ -31,12 +31,18 @@ export type CodeIssuer = {
   readonly issueCode: (
     identifier: string,
     roomId: string,
-    at: Date
+    at: Date,
+    replacing: readonly string[]
   ) => Promise<boolean>
 }
 
 const tryIssue = async (
-  request: { roomId: string; mint: Mint; now: Date },
+  request: {
+    roomId: string
+    mint: Mint
+    now: Date
+    replacing: readonly string[]
+  },
   store: CodeIssuer,
   attempts: number
 ): Promise<Usable<Minted>> => {
@@ -46,7 +52,14 @@ const tryIssue = async (
 
   if (minted === null) return null
 
-  if (await store.issueCode(minted.identifier, request.roomId, request.now)) {
+  if (
+    await store.issueCode(
+      minted.identifier,
+      request.roomId,
+      request.now,
+      request.replacing
+    )
+  ) {
     return minted
   }
 
@@ -54,6 +67,11 @@ const tryIssue = async (
 }
 
 export const issueCode = (
-  request: { roomId: string; mint: Mint; now: Date },
+  request: {
+    roomId: string
+    mint: Mint
+    now: Date
+    replacing: readonly string[]
+  },
   store: CodeIssuer
 ) => tryIssue(request, store, MINT_ATTEMPTS)

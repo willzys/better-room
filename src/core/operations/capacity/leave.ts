@@ -1,9 +1,9 @@
 import { membershipRefusal } from '@/core/membership'
-import { release } from '@/core/operations/release'
+import { release } from '@/core/operations/capacity/release'
 
 import type { Actor } from '@/core/actor'
 import type { Membership, MembershipRefusal } from '@/core/membership'
-import type { ReleaseStore } from '@/core/operations/release'
+import type { ReleaseStore } from '@/core/operations/capacity/release'
 import type { Room } from '@/core/room'
 import type { Usable } from '@/types/absence'
 
@@ -14,10 +14,6 @@ export type LeaveStore = ReleaseStore & {
   readonly membership: (
     roomId: string,
     actorId: string
-  ) => Promise<Usable<Membership>>
-  readonly withdraw: (
-    membershipId: string,
-    at: Date
   ) => Promise<Usable<Membership>>
 }
 
@@ -53,9 +49,10 @@ export const leave = async (
 
   if (refusal !== null) return refuse(refusal)
 
-  const withdrawn = await store.withdraw(held.id, request.now)
+  const withdrawn = await release(held, request.now, store, 'left')
 
-  await release(held, request.now, store)
-
-  return { left: true, membership: withdrawn ?? held }
+  return {
+    left: true,
+    membership: withdrawn ? { ...held, leftAt: request.now } : held
+  }
 }

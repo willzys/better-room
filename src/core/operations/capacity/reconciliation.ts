@@ -1,7 +1,7 @@
-import { release } from '@/core/operations/release'
+import { release } from '@/core/operations/capacity/release'
 
 import type { Membership } from '@/core/membership'
-import type { ReleaseStore } from '@/core/operations/release'
+import type { ReleaseStore } from '@/core/operations/capacity/release'
 
 export type ReconciliationStore = ReleaseStore & {
   readonly owing: (now: Date, batch: number) => Promise<Membership[]>
@@ -23,7 +23,7 @@ export const reconcile = async (
 ): Promise<Reconciliation> => {
   const owing = await store.owing(request.now, request.batch)
   const settled = await Promise.all(
-    owing.map(membership => release(membership, request.now, store))
+    owing.map(membership => release(membership, request.now, store, 'none'))
   )
 
   return {

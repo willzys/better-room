@@ -2,7 +2,7 @@ import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
 import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
-import { createRoom } from '@/core/operations/creation'
+import { createRoom } from '@/core/operations/rooms/creation'
 import {
   exhaustedError,
   serverOnlyError,
@@ -10,7 +10,8 @@ import {
 } from '@/plugin/errors'
 import { minter } from '@/plugin/mint'
 import { roomReport } from '@/plugin/report'
-import { actorStore, creationStore } from '@/plugin/store'
+import { actorStore } from '@/plugin/stores/identity/actor'
+import { creationStore } from '@/plugin/stores/rooms/creation'
 
 import type { CodeFormat } from '@/security/code-format'
 import type { CodeIdentifier } from '@/security/code-identifier'

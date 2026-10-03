@@ -2,11 +2,12 @@ import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
 import * as z from 'zod'
 
 import { findActor } from '@/core/actor'
-import { readAccess } from '@/core/operations/access'
+import { readAccess } from '@/core/operations/reads/access'
 import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
 import { unknownRoomError } from '@/plugin/errors'
 import { membershipReport, roomReport } from '@/plugin/report'
-import { accessStore, actorStore } from '@/plugin/store'
+import { actorStore } from '@/plugin/stores/identity/actor'
+import { accessStore } from '@/plugin/stores/reads/access'
 
 const accessQuery = z.object({
   roomId: z.string().meta({ description: 'The room whose access is reported' })

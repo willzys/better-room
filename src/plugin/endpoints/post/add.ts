@@ -2,7 +2,7 @@ import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
-import { addMember } from '@/core/operations/addition'
+import { addMember } from '@/core/operations/admission/addition'
 import {
   additionError,
   additionServerOnlyError,
@@ -10,7 +10,8 @@ import {
   unknownActorError
 } from '@/plugin/errors'
 import { membershipReport } from '@/plugin/report'
-import { actorStore, additionStore } from '@/plugin/store'
+import { additionStore } from '@/plugin/stores/admission/addition'
+import { actorStore } from '@/plugin/stores/identity/actor'
 
 import type { Actor, ActorStore } from '@/core/actor'
 import type { Usable } from '@/types/absence'

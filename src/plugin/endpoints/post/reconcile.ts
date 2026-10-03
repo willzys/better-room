@@ -1,9 +1,9 @@
 import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
-import { reconcile } from '@/core/operations/reconciliation'
+import { reconcile } from '@/core/operations/capacity/reconciliation'
 import { reconciliationServerOnlyError } from '@/plugin/errors'
-import { reconciliationStore } from '@/plugin/store'
+import { reconciliationStore } from '@/plugin/stores/capacity/reconciliation'
 
 const DEFAULT_BATCH = 200
 const MAX_BATCH = 1000

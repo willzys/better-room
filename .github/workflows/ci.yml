@@ -9,15 +9,13 @@ on:
 permissions:
   contents: read
 
-# A newer commit supersedes an older one on a pull request, but every commit
-# that lands on the trunk has to be verified on its own.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
-    name: Lint and format
+    name: Verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +32,10 @@ jobs:
       - run: yarn oxlint .
 
       - run: yarn oxfmt --check .
+
+      - run: yarn typecheck
+
+      - run: yarn build
 
   subject:
     name: Squash subject

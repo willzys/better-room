@@ -1,11 +1,12 @@
 import { APIError } from 'better-auth/api'
 
-import type { AdditionRefusal } from '@/core/operations/addition'
-import type { JoinRefusal } from '@/core/operations/join'
-import type { LeaveRefusal } from '@/core/operations/leave'
-import type { LifecycleRefusal } from '@/core/operations/lifecycle'
-import type { RevocationRefusal } from '@/core/operations/revocation'
-import type { RotationRefusal } from '@/core/operations/rotation'
+import type { AdditionRefusal } from '@/core/operations/admission/addition'
+import type { JoinRefusal } from '@/core/operations/admission/join'
+import type { LeaveRefusal } from '@/core/operations/capacity/leave'
+import type { RevocationRefusal } from '@/core/operations/capacity/revocation'
+import type { RotationRefusal } from '@/core/operations/codes/rotation'
+import type { PromotionRefusal } from '@/core/operations/identity/promotion'
+import type { LifecycleRefusal } from '@/core/operations/rooms/lifecycle'
 
 type RoomError = {
   readonly code: string
@@ -102,6 +103,30 @@ export const ROOM_ERROR_CODES = {
   RECONCILIATION_IS_SERVER_ONLY: {
     code: 'RECONCILIATION_IS_SERVER_ONLY',
     message: 'Reconciling capacity is not exposed over http'
+  },
+  PROMOTION_NEEDS_A_SESSION: {
+    code: 'PROMOTION_NEEDS_A_SESSION',
+    message: 'Promoting an actor requires an authenticated caller'
+  },
+  NO_GRANT_TO_PROMOTE: {
+    code: 'NO_GRANT_TO_PROMOTE',
+    message: 'The caller carries no grant to promote'
+  },
+  ALREADY_LINKED: {
+    code: 'ALREADY_LINKED',
+    message: 'The actor already belongs to a user'
+  },
+  RESUME_IS_SERVER_ONLY: {
+    code: 'RESUME_IS_SERVER_ONLY',
+    message: 'Resuming a promotion is not exposed over http'
+  },
+  RESUME_NEEDS_BOTH_NAMES: {
+    code: 'RESUME_NEEDS_BOTH_NAMES',
+    message: 'Resuming a promotion names both the actor and the user'
+  },
+  GRANT_IS_STALE: {
+    code: 'GRANT_IS_STALE',
+    message: 'The grant no longer matches the actor it names'
   },
   MEMBERSHIP_EXPIRES_IN_THE_PAST: {
     code: 'MEMBERSHIP_EXPIRES_IN_THE_PAST',
@@ -223,6 +248,30 @@ export const lifecycleServerOnlyError = () =>
 
 export const reconciliationServerOnlyError = () =>
   APIError.from('FORBIDDEN', ROOM_ERROR_CODES.RECONCILIATION_IS_SERVER_ONLY)
+
+const PROMOTION_REFUSALS = {
+  'unknown-actor': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ACTOR],
+  'already-linked': ['CONFLICT', ROOM_ERROR_CODES.ALREADY_LINKED],
+  'stale-grant': ['CONFLICT', ROOM_ERROR_CODES.GRANT_IS_STALE]
+} as const satisfies Record<PromotionRefusal, Refusal>
+
+export const promotionError = (refusal: PromotionRefusal) => {
+  const [status, error] = PROMOTION_REFUSALS[refusal]
+
+  return APIError.from(status, error)
+}
+
+export const promotionNeedsASessionError = () =>
+  APIError.from('UNAUTHORIZED', ROOM_ERROR_CODES.PROMOTION_NEEDS_A_SESSION)
+
+export const resumeIsServerOnlyError = () =>
+  APIError.from('FORBIDDEN', ROOM_ERROR_CODES.RESUME_IS_SERVER_ONLY)
+
+export const resumeNeedsBothNamesError = () =>
+  APIError.from('BAD_REQUEST', ROOM_ERROR_CODES.RESUME_NEEDS_BOTH_NAMES)
+
+export const noGrantToPromoteError = () =>
+  APIError.from('BAD_REQUEST', ROOM_ERROR_CODES.NO_GRANT_TO_PROMOTE)
 
 export const unknownRoomError = () =>
   APIError.from('NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM)

@@ -36,7 +36,7 @@ export const createRoom = async (
   })
 
   const minted = await issueCode(
-    { roomId: room.id, mint: request.mint, now: request.now },
+    { roomId: room.id, mint: request.mint, now: request.now, replacing: [] },
     store
   )
 

@@ -42,7 +42,12 @@ export const rotateCode = async (
   const replaced = await store.activeCodes(request.roomId)
 
   const minted = await issueCode(
-    { roomId: request.roomId, mint: request.mint, now: request.now },
+    {
+      roomId: request.roomId,
+      mint: request.mint,
+      now: request.now,
+      replacing: replaced
+    },
     store
   )
 

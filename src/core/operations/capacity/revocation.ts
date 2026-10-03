@@ -1,7 +1,7 @@
-import { release } from '@/core/operations/release'
+import { release } from '@/core/operations/capacity/release'
 
 import type { Membership } from '@/core/membership'
-import type { ReleaseStore } from '@/core/operations/release'
+import type { ReleaseStore } from '@/core/operations/capacity/release'
 import type { Room } from '@/core/room'
 import type { Usable } from '@/types/absence'
 
@@ -50,7 +50,7 @@ export const revokeMember = async (
 
   const withdrawn = await store.revoke(held.id, request.now)
 
-  await release(held, request.now, store)
+  await release(held, request.now, store, 'none')
 
   return { revoked: true, membership: withdrawn ?? held }
 }

@@ -2,11 +2,12 @@ import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
 import * as z from 'zod'
 
 import { findActor } from '@/core/actor'
-import { leave } from '@/core/operations/leave'
+import { leave } from '@/core/operations/capacity/leave'
 import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
 import { leaveError } from '@/plugin/errors'
 import { membershipReport } from '@/plugin/report'
-import { actorStore, leaveStore } from '@/plugin/store'
+import { leaveStore } from '@/plugin/stores/capacity/leave'
+import { actorStore } from '@/plugin/stores/identity/actor'
 
 const leaveBody = z.object({
   roomId: z.string().meta({ description: 'The room the caller withdraws from' })

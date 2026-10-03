@@ -1,10 +1,10 @@
 import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
-import { revokeMember } from '@/core/operations/revocation'
+import { revokeMember } from '@/core/operations/capacity/revocation'
 import { revocationError, revocationServerOnlyError } from '@/plugin/errors'
 import { membershipReport } from '@/plugin/report'
-import { revocationStore } from '@/plugin/store'
+import { revocationStore } from '@/plugin/stores/capacity/revocation'
 
 const revokeBody = z.object({
   roomId: z
