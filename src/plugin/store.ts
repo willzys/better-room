@@ -287,7 +287,12 @@ export const attemptStore = (adapter: DBAdapter): AttemptStore => ({
 })
 
 const codeIssuer = (adapter: DBAdapter) => ({
-  issueCode: async (identifier: string, roomId: string, at: Date) => {
+  issueCode: async (
+    identifier: string,
+    roomId: string,
+    at: Date,
+    replacing: readonly string[]
+  ) => {
     try {
       await adapter.create<Input, CodeRow>({
         model: MODELS.code,
@@ -304,7 +309,15 @@ const codeIssuer = (adapter: DBAdapter) => ({
 
       if (taken === null) throw error
 
-      return taken.roomId === roomId
+      // Our write would have left an active code for this room that nothing
+      // was already replacing. Anything else is a row we drew again, and a
+      // caller cannot use it: a revoked one refuses entry at once, and one
+      // this rotation is replacing is about to be demoted out from under it.
+      return (
+        taken.roomId === roomId &&
+        taken.status === 'active' &&
+        !replacing.includes(identifier)
+      )
     }
   }
 })
