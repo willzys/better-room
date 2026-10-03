@@ -1,16 +1,47 @@
 import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
+import * as z from 'zod'
 
 import { findActor } from '@/core/actor'
 import { readMemberships } from '@/core/operations/reads/memberships'
 import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
-import { membershipReport, roomReport } from '@/plugin/report'
+import {
+  membershipReport,
+  readResumption,
+  resumptionReport,
+  roomReport
+} from '@/plugin/report'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { membershipsStore } from '@/plugin/stores/reads/memberships'
+
+const membershipsQuery = z
+  .object({
+    before: z
+      .string()
+      .transform((text, issues) => {
+        const resumption = readResumption(text)
+
+        if (resumption === null) {
+          issues.addIssue({
+            code: 'custom',
+            message: 'Unreadable listing cursor'
+          })
+
+          return z.NEVER
+        }
+
+        return resumption
+      })
+      .optional()
+      .meta({
+        description: 'Continue a partial listing from the next it returned'
+      })
+  })
+  .optional()
 
 export const membershipsEndpoint = () =>
   createAuthEndpoint(
     '/better-room/memberships',
-    { method: 'GET' },
+    { method: 'GET', query: membershipsQuery },
     async ctx => {
       const now = new Date()
       const { adapter, secret } = ctx.context
@@ -27,7 +58,7 @@ export const membershipsEndpoint = () =>
       )
 
       const listed = await readMemberships(
-        { actor, now },
+        { actor, now, before: ctx.query?.before ?? null },
         membershipsStore(adapter)
       )
 
@@ -36,7 +67,8 @@ export const membershipsEndpoint = () =>
           membership: membershipReport(entry.membership),
           room: roomReport(entry.room)
         })),
-        complete: listed.complete
+        complete: listed.complete,
+        next: resumptionReport(listed.next)
       })
     }
   )
