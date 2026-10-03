@@ -11,6 +11,31 @@ type Extendable = {
   additionalFields?: AdditionalFields
 }
 
+const extended = <Fields extends AdditionalFields>(
+  table: string,
+  fields: Fields,
+  additionalFields: AdditionalFields = {}
+): Fields & AdditionalFields => {
+  for (const name of Object.keys(additionalFields)) {
+    if (name === 'id' || Object.hasOwn(fields, name)) {
+      throw new TypeError(
+        `${table}.additionalFields.${name} collides with a field better-room owns`
+      )
+    }
+  }
+
+  return { ...fields, ...additionalFields }
+}
+
+const extendedTable = <Table extends { fields: AdditionalFields }>(
+  name: string,
+  table: Table,
+  extension?: Extendable
+) => ({
+  ...table,
+  fields: extended(name, table.fields, extension?.additionalFields)
+})
+
 const timestamp = () =>
   ({
     type: 'date',
@@ -37,7 +62,7 @@ const actorTable = () =>
     }
   }) satisfies RoomTable
 
-const roomTable = (additionalFields?: AdditionalFields) =>
+const roomTable = () =>
   ({
     fields: {
       status: {
@@ -58,8 +83,7 @@ const roomTable = (additionalFields?: AdditionalFields) =>
         required: false,
         references: { model: 'roomActor', field: 'id', onDelete: 'set null' }
       },
-      createdAt: timestamp(),
-      ...additionalFields
+      createdAt: timestamp()
     }
   }) satisfies RoomTable
 
@@ -98,7 +122,7 @@ const codeTable = () =>
     ]
   }) satisfies RoomTable
 
-const memberTable = (additionalFields?: AdditionalFields) =>
+const memberTable = () =>
   ({
     fields: {
       roomId: {
@@ -128,8 +152,7 @@ const memberTable = (additionalFields?: AdditionalFields) =>
         defaultValue: 1,
         input: false
       },
-      releasedAt: { type: 'date', required: false },
-      ...additionalFields
+      releasedAt: { type: 'date', required: false }
     },
     indexes: [
       {
@@ -185,9 +208,13 @@ export const createRoomSchema = (options?: RoomSchemaOption) =>
   mergeSchema(
     {
       roomActor: actorTable(),
-      room: roomTable(options?.room?.additionalFields),
+      room: extendedTable('room', roomTable(), options?.room),
       roomCode: codeTable(),
-      roomMember: memberTable(options?.roomMember?.additionalFields),
+      roomMember: extendedTable(
+        'roomMember',
+        memberTable(),
+        options?.roomMember
+      ),
       roomAttempt: attemptTable()
     },
     options
