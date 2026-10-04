@@ -1,3 +1,4 @@
+import { MAX_STORED_INTEGER } from '@/plugin/schema'
 import { codeFormat } from '@/security/code-format'
 
 import type { RoomSchemaOption } from '@/plugin/schema'
@@ -53,6 +54,10 @@ const ceilingOf = (name: string, max: number | undefined, fallback: number) => {
 
   if (!Number.isInteger(resolved) || resolved < 1) {
     throw new RangeError(`${name} must be a positive integer of attempts`)
+  }
+
+  if (resolved > MAX_STORED_INTEGER) {
+    throw new RangeError(`${name} must not exceed ${MAX_STORED_INTEGER}`)
   }
 
   return resolved
@@ -114,10 +119,19 @@ const graceOf = (grace: number | undefined) => {
   return resolved
 }
 
+const overHttpOf = (overHttp: unknown) => {
+  if (overHttp === undefined) return false
+  if (typeof overHttp !== 'boolean') {
+    throw new TypeError('creation over http must be a boolean')
+  }
+
+  return overHttp
+}
+
 export const settingsOf = (options?: RoomOptions) => ({
   format: formatOf(options?.code),
   grace: graceOf(options?.code?.grace),
   grantLifetime: grantLifetimeOf(options?.grant?.lifetime),
-  overHttp: options?.creation?.overHttp ?? false,
+  overHttp: overHttpOf(options?.creation?.overHttp),
   ...limitsOf(options?.attempts)
 })

@@ -10,6 +10,7 @@ import {
 } from '@/plugin/errors'
 import { minter } from '@/plugin/mint'
 import { roomReport } from '@/plugin/report'
+import { MAX_STORED_INTEGER } from '@/plugin/schema'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { creationStore } from '@/plugin/stores/rooms/creation'
 
@@ -25,6 +26,7 @@ const createBody = z.object({
     .number()
     .int()
     .positive()
+    .max(MAX_STORED_INTEGER)
     .optional()
     .meta({ description: 'The seats the room admits, unbounded when absent' }),
   expiresAt: z.coerce
