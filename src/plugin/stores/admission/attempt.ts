@@ -1,4 +1,4 @@
-import { byId, MODELS } from '@/plugin/stores/rows'
+import { byKey, MODELS } from '@/plugin/stores/rows'
 
 import type { DBAdapter } from 'better-auth/types'
 
@@ -7,20 +7,19 @@ import type { Input } from '@/plugin/stores/rows'
 
 export const attemptStore = (adapter: DBAdapter): AttemptStore => ({
   read: key =>
-    adapter.findOne<Attempt>({ model: MODELS.attempt, where: byId(key) }),
+    adapter.findOne<Attempt>({ model: MODELS.attempt, where: byKey(key) }),
   open: async (key, at) => {
     try {
       await adapter.create<Input, Attempt>({
         model: MODELS.attempt,
-        data: { id: key, count: 1, lastAttemptAt: at },
-        forceAllowId: true
+        data: { key, count: 1, lastAttemptAt: at }
       })
 
       return true
     } catch (error) {
       const existing = await adapter.findOne<Attempt>({
         model: MODELS.attempt,
-        where: byId(key)
+        where: byKey(key)
       })
 
       if (existing === null) throw error
@@ -32,7 +31,7 @@ export const attemptStore = (adapter: DBAdapter): AttemptStore => ({
     (await adapter.incrementOne<Attempt>({
       model: MODELS.attempt,
       where: [
-        ...byId(key),
+        ...byKey(key),
         { field: 'lastAttemptAt', operator: 'lte', value: unchangedSince }
       ],
       increment: {},
@@ -42,7 +41,7 @@ export const attemptStore = (adapter: DBAdapter): AttemptStore => ({
     (await adapter.incrementOne<Attempt>({
       model: MODELS.attempt,
       where: [
-        ...byId(key),
+        ...byKey(key),
         { field: 'lastAttemptAt', operator: 'gt', value: after }
       ],
       increment: { count: 1 },

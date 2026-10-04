@@ -3,6 +3,7 @@ import { APIError } from 'better-auth/api'
 import { lowering } from '@/plugin/stores/capacity/release'
 import {
   byId,
+  byIdentifier,
   capacityGuard,
   found,
   MODELS,
@@ -86,7 +87,7 @@ export const joinStore = (adapter: DBAdapter): JoinStore => ({
     found(
       await adapter.findOne<CodeRow>({
         model: MODELS.code,
-        where: byId(identifier)
+        where: byIdentifier(identifier)
       }),
       toCode
     ),

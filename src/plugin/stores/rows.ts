@@ -33,8 +33,10 @@ export type MemberRow = Nullable<
 export type Rows = DBAdapter
 
 export const toActor = (row: ActorRow): Actor => ({
-  ...row,
-  userId: row.userId ?? null
+  id: row.id,
+  userId: row.userId ?? null,
+  grantEpoch: row.grantEpoch,
+  createdAt: row.createdAt
 })
 
 export const toRoom = (row: RoomRow): Room => ({
@@ -45,10 +47,20 @@ export const toRoom = (row: RoomRow): Room => ({
 })
 
 export const toCode = (row: CodeRow): RoomCode => ({
-  ...row,
+  id: row.id,
+  identifier: row.identifier,
+  roomId: row.roomId,
+  status: row.status,
   expiresAt: row.expiresAt ?? null,
-  revokedAt: row.revokedAt ?? null
+  revokedAt: row.revokedAt ?? null,
+  createdAt: row.createdAt
 })
+
+export const byIdentifier = (identifier: string): Where[] => [
+  { field: 'identifier', value: identifier }
+]
+
+export const byKey = (key: string): Where[] => [{ field: 'key', value: key }]
 
 export const toMembership = (row: MemberRow): Membership => ({
   id: row.id,

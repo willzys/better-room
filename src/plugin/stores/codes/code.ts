@@ -1,4 +1,4 @@
-import { byId, MODELS } from '@/plugin/stores/rows'
+import { byIdentifier, MODELS } from '@/plugin/stores/rows'
 
 import type { DBAdapter } from 'better-auth/types'
 
@@ -14,15 +14,14 @@ export const codeIssuer = (adapter: DBAdapter) => ({
     try {
       await adapter.create<Input, CodeRow>({
         model: MODELS.code,
-        data: { id: identifier, roomId, status: 'active', createdAt: at },
-        forceAllowId: true
+        data: { identifier, roomId, status: 'active', createdAt: at }
       })
 
       return true
     } catch (error) {
       const taken = await adapter.findOne<CodeRow>({
         model: MODELS.code,
-        where: byId(identifier)
+        where: byIdentifier(identifier)
       })
 
       if (taken === null) throw error
