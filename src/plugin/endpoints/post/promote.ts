@@ -1,8 +1,8 @@
-import { createAuthEndpoint, getSessionFromCtx } from 'better-auth/api'
+import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { promote } from '@/core/operations/identity/promotion'
-import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
+import { carriersFrom, GRANT_COOKIE } from '@/plugin/carrier'
 import {
   noGrantToPromoteError,
   promotionError,
@@ -50,22 +50,14 @@ export const promoteEndpoint = () =>
         return ctx.json(promotionReport(resumed))
       }
 
-      const cookie = ctx.context.createAuthCookie(GRANT_COOKIE)
+      const carriers = await carriersFrom(ctx, now)
 
-      const [signed, session] = await Promise.all([
-        ctx.getSignedCookie(cookie.name, secret),
-        getSessionFromCtx(ctx)
-      ])
-
-      if (session === null) throw promotionNeedsASessionError()
-
-      const carriers = carriersOf(signed, session, now)
-
+      if (carriers.userId === null) throw promotionNeedsASessionError()
       if (carriers.claim === null) throw noGrantToPromoteError()
 
       const outcome = await promote(
         {
-          userId: session.user.id,
+          userId: carriers.userId,
           actorId: carriers.claim.actorId,
           authority: { kind: 'grant', epoch: carriers.claim.epoch },
           now
@@ -74,6 +66,8 @@ export const promoteEndpoint = () =>
       )
 
       if (!outcome.promoted) throw promotionError(outcome.refusal)
+
+      const cookie = ctx.context.createAuthCookie(GRANT_COOKIE)
 
       await ctx.setSignedCookie(cookie.name, '', secret, {
         ...cookie.attributes,

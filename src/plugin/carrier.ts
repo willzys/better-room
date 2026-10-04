@@ -1,4 +1,8 @@
+import { getSessionFromCtx } from 'better-auth/api'
+
 import { decodeGrant, isLive } from '@/security/grant'
+
+import type { GenericEndpointContext } from '@better-auth/core'
 
 import type { ActorCarriers, ActorClaim } from '@/core/actor'
 import type { Usable } from '@/types/absence'
@@ -19,7 +23,7 @@ const claimOf = (signed: unknown, now: Date): Usable<ActorClaim> => {
   return { actorId: grant.actorId, epoch: grant.epoch }
 }
 
-export const carriersOf = (
+const carriersOf = (
   signed: unknown,
   session: Usable<SessionCarrier>,
   now: Date
@@ -27,3 +31,16 @@ export const carriersOf = (
   userId: session?.user.id ?? null,
   claim: claimOf(signed, now)
 })
+
+export const carriersFrom = async (
+  ctx: GenericEndpointContext,
+  now: Date
+): Promise<ActorCarriers> => {
+  const cookie = ctx.context.createAuthCookie(GRANT_COOKIE)
+  const [signed, session] = await Promise.all([
+    ctx.getSignedCookie(cookie.name, ctx.context.secret),
+    getSessionFromCtx(ctx)
+  ])
+
+  return carriersOf(signed, session, now)
+}

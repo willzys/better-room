@@ -1,10 +1,10 @@
-import { createAuthEndpoint, getIP, getSessionFromCtx } from 'better-auth/api'
+import { createAuthEndpoint, getIP } from 'better-auth/api'
 import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
 import { isBlocked, isExhausted, recordAttempt } from '@/core/attempt'
 import { join } from '@/core/operations/admission/join'
-import { carriersOf, GRANT_COOKIE } from '@/plugin/carrier'
+import { carriersFrom, GRANT_COOKIE } from '@/plugin/carrier'
 import { attemptError, refusalError } from '@/plugin/errors'
 import { membershipReport } from '@/plugin/report'
 import { attemptStore } from '@/plugin/stores/admission/attempt'
@@ -137,17 +137,8 @@ export const joinEndpoint = (deps: JoinDeps) =>
         {
           codeIdentifier: identifier,
           now,
-          actor: async () => {
-            const [signed, session] = await Promise.all([
-              ctx.getSignedCookie(cookie.name, secret),
-              getSessionFromCtx(ctx)
-            ])
-
-            return resolveActor(
-              carriersOf(signed, session, now),
-              actorStore(adapter)
-            )
-          }
+          actor: async () =>
+            resolveActor(await carriersFrom(ctx, now), actorStore(adapter))
         },
         joinStore(adapter)
       )

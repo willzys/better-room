@@ -1,6 +1,7 @@
 import { EXPIRY_BRANCHES } from '@/core/operations/reads/memberships'
 
 import type { Membership } from '@/core/membership'
+import type { Reconciliation } from '@/core/operations/capacity/reconciliation'
 import type { Promoted } from '@/core/operations/identity/promotion'
 import type {
   ExpiryBranch,
@@ -31,6 +32,11 @@ export type OccupancyReport = {
   readonly roomId: string
   readonly occupied: number
   readonly maxMembers: Unbounded<number>
+}
+
+export type ReconciliationReport = {
+  readonly owing: number
+  readonly released: number
 }
 
 export type MembershipReport = {
@@ -77,6 +83,13 @@ export const occupancyReport = (outcome: Occupied): OccupancyReport => ({
   roomId: outcome.room.id,
   occupied: outcome.occupied,
   maxMembers: outcome.room.maxMembers
+})
+
+export const reconciliationReport = (
+  reconciliation: Reconciliation
+): ReconciliationReport => ({
+  owing: reconciliation.owing,
+  released: reconciliation.released
 })
 
 export const promotionReport = (outcome: Promoted): PromotionReport => ({

@@ -3,6 +3,7 @@ import * as z from 'zod'
 
 import { reconcile } from '@/core/operations/capacity/reconciliation'
 import { reconciliationServerOnlyError } from '@/plugin/errors'
+import { reconciliationReport } from '@/plugin/report'
 import { reconciliationStore } from '@/plugin/stores/capacity/reconciliation'
 
 const DEFAULT_BATCH = 200
@@ -25,11 +26,11 @@ export const reconcileEndpoint = () =>
     async ctx => {
       if (ctx.request !== undefined) throw reconciliationServerOnlyError()
 
-      return ctx.json(
-        await reconcile(
-          { now: new Date(), batch: ctx.body.batch ?? DEFAULT_BATCH },
-          reconciliationStore(ctx.context.adapter)
-        )
+      const reconciled = await reconcile(
+        { now: new Date(), batch: ctx.body.batch ?? DEFAULT_BATCH },
+        reconciliationStore(ctx.context.adapter)
       )
+
+      return ctx.json(reconciliationReport(reconciled))
     }
   )
