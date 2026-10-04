@@ -8,6 +8,7 @@ import type { LeaveRefusal } from '@/core/operations/capacity/leave'
 import type { RevocationRefusal } from '@/core/operations/capacity/revocation'
 import type { RotationRefusal } from '@/core/operations/codes/rotation'
 import type { PromotionRefusal } from '@/core/operations/identity/promotion'
+import type { OccupancyRefusal } from '@/core/operations/reads/occupancy'
 import type { LifecycleRefusal } from '@/core/operations/rooms/lifecycle'
 
 type RoomError = {
@@ -86,6 +87,17 @@ export const oneIdentityError = () =>
 
 export const unknownActorError = () =>
   APIError.from('NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ACTOR)
+
+const OCCUPANCY_REFUSALS = {
+  'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  'not-a-member': ['FORBIDDEN', ROOM_ERROR_CODES.NOT_A_MEMBER]
+} as const satisfies Record<OccupancyRefusal, Refusal>
+
+export const occupancyError = (refusal: OccupancyRefusal) => {
+  const [status, error] = OCCUPANCY_REFUSALS[refusal]
+
+  return APIError.from(status, error)
+}
 
 const LEAVE_REFUSALS = {
   'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],

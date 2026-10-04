@@ -1,4 +1,4 @@
-import { release } from '@/core/operations/capacity/release'
+import { relinquish } from '@/core/operations/capacity/release'
 
 import type { Actor } from '@/core/actor'
 import type { Membership } from '@/core/membership'
@@ -72,8 +72,7 @@ const carry = async (
     return true
   }
 
-  await release(membership, now, store, 'none')
-  await store.discard(membership.id)
+  await relinquish(membership, now, store)
 
   return false
 }

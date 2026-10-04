@@ -6,6 +6,7 @@ import type {
   ExpiryBranch,
   Resumption
 } from '@/core/operations/reads/memberships'
+import type { Occupied } from '@/core/operations/reads/occupancy'
 import type { Room, RoomStatus } from '@/core/room'
 import type {
   Exhausted,
@@ -24,6 +25,12 @@ export type RoomReport = {
   readonly expiresAt: Perpetual<Date>
   readonly createdBy: Unlinked<string>
   readonly createdAt: Date
+}
+
+export type OccupancyReport = {
+  readonly roomId: string
+  readonly occupied: number
+  readonly maxMembers: Unbounded<number>
 }
 
 export type MembershipReport = {
@@ -64,6 +71,12 @@ export const membershipReport = (membership: Membership): MembershipReport => ({
   expiresAt: membership.expiresAt,
   leftAt: membership.leftAt,
   revokedAt: membership.revokedAt
+})
+
+export const occupancyReport = (outcome: Occupied): OccupancyReport => ({
+  roomId: outcome.room.id,
+  occupied: outcome.occupied,
+  maxMembers: outcome.room.maxMembers
 })
 
 export const promotionReport = (outcome: Promoted): PromotionReport => ({
