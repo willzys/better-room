@@ -117,7 +117,8 @@ export const revocationServerOnlyError = () =>
 
 const LIFECYCLE_REFUSALS = {
   'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
-  closed: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_CLOSED]
+  closed: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_CLOSED],
+  contended: ['CONFLICT', ROOM_ERROR_CODES.ROOM_CONTENDED]
 } as const satisfies Record<LifecycleRefusal, Refusal>
 
 export const lifecycleError = (refusal: LifecycleRefusal) => {

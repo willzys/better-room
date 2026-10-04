@@ -1,3 +1,4 @@
+import { EXPIRY_BRANCHES } from '@/core/operations/reads/memberships'
 import {
   HELD_CEILING,
   MODELS,
@@ -8,81 +9,84 @@ import {
 import type { DBAdapter, Where } from 'better-auth/types'
 
 import type { Membership } from '@/core/membership'
-import type { MembershipsStore } from '@/core/operations/reads/memberships'
+import type {
+  ExpiryBranch,
+  HeldMemberships,
+  MembershipsStore,
+  Resumption
+} from '@/core/operations/reads/memberships'
 import type { MemberRow, RoomRow } from '@/plugin/stores/rows'
+import type { Unstarted } from '@/types/absence'
 
-const standing = (actorId: string): Where[] => [
-  { field: 'actorId', value: actorId },
-  { field: 'leftAt', value: null },
-  { field: 'revokedAt', value: null }
-]
+const read = async (
+  adapter: DBAdapter,
+  request: {
+    readonly actorId: string
+    readonly now: Date
+    readonly branch: ExpiryBranch
+    readonly after: Unstarted<string>
+    readonly limit: number
+  }
+): Promise<Membership[]> =>
+  (
+    await adapter.findMany<MemberRow>({
+      model: MODELS.member,
+      where: [
+        { field: 'actorId', value: request.actorId },
+        { field: 'leftAt', value: null },
+        { field: 'revokedAt', value: null },
+        request.branch === 'perpetual'
+          ? { field: 'expiresAt', value: null }
+          : { field: 'expiresAt', operator: 'gt', value: request.now },
+        ...(request.after === null
+          ? []
+          : [{ field: 'id', operator: 'gt' as const, value: request.after }])
+      ] satisfies Where[],
+      sortBy: { field: 'id', direction: 'asc' },
+      limit: request.limit
+    })
+  ).map(toMembership)
 
-const byRecency = (
-  left: readonly Membership[],
-  right: readonly Membership[]
-): Membership[] => {
-  const merged: Membership[] = []
-  let fromLeft = 0
-  let fromRight = 0
+const walk = async (
+  adapter: DBAdapter,
+  request: { readonly actorId: string; readonly now: Date },
+  from: Resumption,
+  gathered: Membership[]
+): Promise<HeldMemberships> => {
+  const remaining = HELD_CEILING - gathered.length
+  const rows = await read(adapter, {
+    ...request,
+    ...from,
+    limit: remaining + 1
+  })
+  const kept = rows.slice(0, remaining)
+  const memberships = [...gathered, ...kept]
 
-  while (merged.length < HELD_CEILING) {
-    const head = left[fromLeft]
-    const rival = right[fromRight]
-
-    if (head === undefined) {
-      if (rival === undefined) break
-
-      merged.push(rival)
-      fromRight++
-    } else if (
-      rival === undefined ||
-      head.joinedAt.getTime() >= rival.joinedAt.getTime()
-    ) {
-      merged.push(head)
-      fromLeft++
-    } else {
-      merged.push(rival)
-      fromRight++
+  if (rows.length > remaining) {
+    return {
+      memberships,
+      complete: false,
+      next: { branch: from.branch, after: kept.at(-1)?.id ?? from.after }
     }
   }
 
-  return merged
+  const following = EXPIRY_BRANCHES[EXPIRY_BRANCHES.indexOf(from.branch) + 1]
+
+  if (following === undefined) {
+    return { memberships, complete: true, next: null }
+  }
+
+  return walk(adapter, request, { branch: following, after: null }, memberships)
 }
 
-const page = (adapter: DBAdapter, where: Where[]) =>
-  adapter.findMany<MemberRow>({
-    model: MODELS.member,
-    where,
-    sortBy: { field: 'joinedAt', direction: 'desc' },
-    limit: HELD_CEILING
-  })
-
 export const membershipsStore = (adapter: DBAdapter): MembershipsStore => ({
-  held: async (actorId, now) => {
-    const [perpetual, dated] = await Promise.all([
-      page(adapter, [
-        ...standing(actorId),
-        { field: 'expiresAt', value: null }
-      ]),
-      page(adapter, [
-        ...standing(actorId),
-        { field: 'expiresAt', operator: 'gt', value: now }
-      ])
-    ])
-
-    const memberships = byRecency(
-      perpetual.map(toMembership),
-      dated.map(toMembership)
-    )
-
-    return {
-      memberships,
-      complete:
-        perpetual.length < HELD_CEILING &&
-        dated.length < HELD_CEILING &&
-        memberships.length === perpetual.length + dated.length
-    }
-  },
+  held: (actorId, now, before) =>
+    walk(
+      adapter,
+      { actorId, now },
+      before ?? { branch: 'perpetual', after: null },
+      []
+    ),
   rooms: async ids =>
     (
       await adapter.findMany<RoomRow>({
