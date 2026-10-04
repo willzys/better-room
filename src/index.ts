@@ -15,6 +15,7 @@ export type { RoomCode, RoomCodeStatus } from '@/core/room-code'
 export type {
   MembershipReport,
   OccupancyReport,
+  PromotionReport,
   RoomReport
 } from '@/plugin/report'
 export type { RoomSchemaOption } from '@/plugin/schema'

@@ -20,7 +20,7 @@ export const reconciliationStore = (
       })
 
     const pages = await Promise.all([
-      owing([{ field: 'expiresAt', operator: 'lt', value: now }]),
+      owing([{ field: 'expiresAt', operator: 'lte', value: now }]),
       owing([{ field: 'leftAt', operator: 'ne', value: null }]),
       owing([{ field: 'revokedAt', operator: 'ne', value: null }])
     ])
