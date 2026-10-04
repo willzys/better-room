@@ -16,6 +16,7 @@ export type {
   MembershipReport,
   OccupancyReport,
   PromotionReport,
+  ReconciliationReport,
   RoomReport
 } from '@/plugin/report'
 export type { RoomSchemaOption } from '@/plugin/schema'
