@@ -40,10 +40,13 @@ export const toActor = (row: ActorRow): Actor => ({
 })
 
 export const toRoom = (row: RoomRow): Room => ({
-  ...row,
+  id: row.id,
+  status: row.status,
+  memberCount: row.memberCount,
   maxMembers: row.maxMembers ?? null,
   expiresAt: row.expiresAt ?? null,
-  createdBy: row.createdBy ?? null
+  createdBy: row.createdBy ?? null,
+  createdAt: row.createdAt
 })
 
 export const toCode = (row: CodeRow): RoomCode => ({
