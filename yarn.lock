@@ -2150,6 +2150,7 @@ __metadata:
   peerDependencies:
     "@better-auth/core": ^1.7.7
     better-auth: ^1.7.7
+    zod: ^4.5.4
   dependenciesMeta:
     bun:
       built: true
