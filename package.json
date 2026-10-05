@@ -47,9 +47,6 @@
     "test:integration": "bun test tests/integration",
     "test:generate": "bun tests/integration/prisma/generate.ts"
   },
-  "dependencies": {
-    "zod": "^4.6.5"
-  },
   "devDependencies": {
     "@better-auth/core": "^1.7.7",
     "@commitlint/cli": "^21.2.3",
@@ -73,7 +70,8 @@
     "simple-git-hooks": "^2.14.0",
     "tsdown": "^0.23.0",
     "typescript": "^5.9.3",
-    "ultracite": "^7.12.2"
+    "ultracite": "^7.12.2",
+    "zod": "^4.6.5"
   },
   "dependenciesMeta": {
     "bun": {
@@ -82,7 +80,8 @@
   },
   "peerDependencies": {
     "@better-auth/core": "^1.7.7",
-    "better-auth": "^1.7.7"
+    "better-auth": "^1.7.7",
+    "zod": "^4.5.4"
   },
   "simple-git-hooks": {
     "commit-msg": "yarn commitlint --edit \"$1\""
