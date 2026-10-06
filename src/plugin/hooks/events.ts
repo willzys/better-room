@@ -1,13 +1,13 @@
 import type { MembershipReport, RoomReport } from '@/plugin/http/report'
 
 type MembershipChange = {
-  readonly type: 'joined' | 'added' | 'left' | 'revoked'
+  readonly type: 'joined' | 'added' | 'left' | 'revoked' | 'expired'
   readonly roomId: string
   readonly membership: MembershipReport
 }
 
 type RoomChange = {
-  readonly type: 'locked' | 'unlocked' | 'closed'
+  readonly type: 'created' | 'locked' | 'unlocked' | 'closed'
   readonly roomId: string
   readonly room: RoomReport
 }

@@ -1,3 +1,4 @@
+import { hasLapsed } from '@/core/membership'
 import { release } from '@/core/operations/capacity/release'
 
 import type { Membership } from '@/core/membership'
@@ -15,6 +16,7 @@ export type ReconciliationRequest = {
 export type Reconciliation = {
   readonly owing: number
   readonly released: number
+  readonly lapsed: readonly Membership[]
 }
 
 export const reconcile = async (
@@ -28,6 +30,10 @@ export const reconcile = async (
 
   return {
     owing: owing.length,
-    released: settled.filter(Boolean).length
+    released: settled.filter(Boolean).length,
+    lapsed: owing.filter(
+      (membership, index) =>
+        settled[index] && hasLapsed(membership, request.now)
+    )
   }
 }
