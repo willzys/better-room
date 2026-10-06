@@ -2,10 +2,15 @@ import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { rotateCode } from '@/core/operations/codes/rotation'
-import { rotationError, rotationServerOnlyError } from '@/plugin/errors'
-import { minter } from '@/plugin/mint'
+import { minter } from '@/plugin/codes/mint'
+import {
+  rotationError,
+  rotationIsServerOnlyError
+} from '@/plugin/errors/refusals'
+import { isServerCall } from '@/plugin/http/carrier'
 import { rotationStore } from '@/plugin/stores/codes/rotation'
 
+import type { Signal } from '@/plugin/hooks/events'
 import type { CodeFormat } from '@/security/code-format'
 import type { CodeIdentifier } from '@/security/code-identifier'
 
@@ -17,6 +22,7 @@ type RotateDeps = {
   readonly format: CodeFormat
   readonly identify: (secret: string) => CodeIdentifier
   readonly grace: number
+  readonly signal: Signal
 }
 
 export const rotateEndpoint = (deps: RotateDeps) =>
@@ -24,7 +30,7 @@ export const rotateEndpoint = (deps: RotateDeps) =>
     '/better-room/rotate-code',
     { method: 'POST', body: rotateBody },
     async ctx => {
-      if (ctx.request !== undefined) throw rotationServerOnlyError()
+      if (!isServerCall(ctx)) throw rotationIsServerOnlyError()
 
       const { adapter, secret } = ctx.context
 
@@ -39,6 +45,11 @@ export const rotateEndpoint = (deps: RotateDeps) =>
       )
 
       if (!outcome.rotated) throw rotationError(outcome.refusal)
+
+      await deps.signal(
+        { type: 'rotated', roomId: ctx.body.roomId },
+        ctx.context.logger
+      )
 
       return ctx.json({ code: outcome.code })
     }

@@ -2,11 +2,11 @@ import { createAuthEndpoint, getIP } from 'better-auth/api'
 import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
-import { isBlocked, isExhausted, recordAttempt } from '@/core/attempt'
+import { chargeFailure, isThrottled } from '@/core/operations/admission/attempt'
 import { join } from '@/core/operations/admission/join'
-import { carriersFrom, GRANT_COOKIE } from '@/plugin/carrier'
-import { attemptError, refusalError } from '@/plugin/errors'
-import { membershipReport } from '@/plugin/report'
+import { tooManyAttemptsError, joinError } from '@/plugin/errors/refusals'
+import { carriersFrom, GRANT_COOKIE } from '@/plugin/http/carrier'
+import { membershipReport } from '@/plugin/http/report'
 import { attemptStore } from '@/plugin/stores/admission/attempt'
 import { joinStore } from '@/plugin/stores/admission/join'
 import { actorStore } from '@/plugin/stores/identity/actor'
@@ -15,26 +15,27 @@ import { encodeGrant } from '@/security/grant'
 import type { BetterAuthOptions } from 'better-auth/types'
 
 import type { Actor } from '@/core/actor'
-import type { AttemptLimit, AttemptStore } from '@/core/attempt'
+import type { AttemptStore } from '@/core/attempt'
+import type {
+  AttemptBudgets,
+  AttemptRequest
+} from '@/core/operations/admission/attempt'
+import type { JoinRefusal } from '@/core/operations/admission/join'
+import type { Signal } from '@/plugin/hooks/events'
 import type { CodeIdentifier } from '@/security/code-identifier'
-import type { Usable } from '@/types/absence'
-
-const GLOBAL_KEY = 'global'
 
 const joinBody = z.object({
   code: z.string().meta({ description: 'The room code being presented' })
 })
 
-type JoinDeps = {
+type JoinDeps = AttemptBudgets & {
   readonly identify: (secret: string) => CodeIdentifier
   readonly grantLifetime: number
-  readonly perIp: AttemptLimit
-  readonly everyone: AttemptLimit
+  readonly signal: Signal
 }
 
-type Budget = {
-  readonly key: string
-  readonly limit: AttemptLimit
+type Reporter = {
+  readonly warn: (message: string) => void
 }
 
 const grantFor = (actor: Actor, lifetime: number, now: Date) =>
@@ -49,62 +50,15 @@ const addressOf = (
   options: BetterAuthOptions
 ) => (carrier === undefined ? null : getIP(carrier, options))
 
-const budgetsOf = (ip: Usable<string>, deps: JoinDeps): Budget[] =>
-  ip === null
-    ? [{ key: GLOBAL_KEY, limit: deps.everyone }]
-    : [
-        { key: GLOBAL_KEY, limit: deps.everyone },
-        { key: `ip:${ip}`, limit: deps.perIp }
-      ]
-
-const blocked = async (
-  ip: Usable<string>,
-  deps: JoinDeps,
+const charge = async (
+  request: AttemptRequest,
   store: AttemptStore,
-  now: Date
-) => {
-  if (ip === null) {
-    return isExhausted(await store.read(GLOBAL_KEY), deps.everyone, now)
-  }
-
-  const [mine, everyone] = await Promise.all([
-    store.read(`ip:${ip}`),
-    store.read(GLOBAL_KEY)
-  ])
-
-  return isBlocked(
-    { mine, everyone },
-    { perIp: deps.perIp, everyone: deps.everyone },
-    now
-  )
-}
-
-type Reporter = {
-  readonly warn: (message: string) => void
-}
-
-const count = async (
-  budgets: Budget[],
-  store: AttemptStore,
-  now: Date,
   logger: Reporter
 ) => {
-  const recorded = await Promise.all(
-    budgets.map(async budget => ({
-      key: budget.key,
-      counted: await recordAttempt(
-        { key: budget.key, limit: budget.limit, now },
-        store
-      )
-    }))
-  )
-
-  for (const budget of recorded) {
-    if (!budget.counted) {
-      logger.warn(
-        `better-room could not count a failed attempt against ${budget.key}; its budget is under contention`
-      )
-    }
+  for (const key of await chargeFailure(request, store)) {
+    logger.warn(
+      `better-room could not count a failed attempt against ${key}; its budget is under contention`
+    )
   }
 }
 
@@ -114,24 +68,25 @@ export const joinEndpoint = (deps: JoinDeps) =>
     { method: 'POST', body: joinBody },
     async ctx => {
       const now = new Date()
-      const { adapter, secret } = ctx.context
+      const { adapter, secret, logger } = ctx.context
       const attempts = attemptStore(adapter)
-      const ip = addressOf(ctx.request ?? ctx.headers, ctx.context.options)
-      const budgets = budgetsOf(ip, deps)
+      const attempt: AttemptRequest = {
+        ip: addressOf(ctx.request ?? ctx.headers, ctx.context.options),
+        budgets: { perIp: deps.perIp, everyone: deps.everyone },
+        now
+      }
 
-      if (await blocked(ip, deps, attempts, now)) throw attemptError()
+      const refused = async (refusal: JoinRefusal) => {
+        if (refusal === 'unresolved') await charge(attempt, attempts, logger)
+
+        return joinError(refusal)
+      }
+
+      if (await isThrottled(attempt, attempts)) throw tooManyAttemptsError()
 
       const identifier = await deps.identify(secret)(ctx.body.code)
 
-      if (identifier === null) {
-        await count(budgets, attempts, now, ctx.context.logger)
-
-        throw refusalError('unresolved')
-      }
-
-      const cookie = ctx.context.createAuthCookie(GRANT_COOKIE, {
-        maxAge: deps.grantLifetime
-      })
+      if (identifier === null) throw await refused('unresolved')
 
       const outcome = await join(
         {
@@ -143,15 +98,13 @@ export const joinEndpoint = (deps: JoinDeps) =>
         joinStore(adapter)
       )
 
-      if (!outcome.admitted) {
-        if (outcome.refusal === 'unresolved') {
-          await count(budgets, attempts, now, ctx.context.logger)
-        }
-
-        throw refusalError(outcome.refusal)
-      }
+      if (!outcome.admitted) throw await refused(outcome.refusal)
 
       if (outcome.actor.userId === null) {
+        const cookie = ctx.context.createAuthCookie(GRANT_COOKIE, {
+          maxAge: deps.grantLifetime
+        })
+
         await ctx.setSignedCookie(
           cookie.name,
           grantFor(outcome.actor, deps.grantLifetime, now),
@@ -160,6 +113,15 @@ export const joinEndpoint = (deps: JoinDeps) =>
         )
       }
 
-      return ctx.json({ membership: membershipReport(outcome.membership) })
+      const membership = membershipReport(outcome.membership)
+
+      if (outcome.changed) {
+        await deps.signal(
+          { type: 'joined', roomId: membership.roomId, membership },
+          logger
+        )
+      }
+
+      return ctx.json({ membership })
     }
   )

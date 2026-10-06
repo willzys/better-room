@@ -3,17 +3,21 @@ import * as z from 'zod'
 
 import { resolveActor } from '@/core/actor'
 import { createRoom } from '@/core/operations/rooms/creation'
+import { minter } from '@/plugin/codes/mint'
 import {
-  exhaustedError,
-  serverOnlyError,
-  unauthenticatedError
-} from '@/plugin/errors'
-import { minter } from '@/plugin/mint'
-import { roomReport } from '@/plugin/report'
-import { MAX_STORED_INTEGER } from '@/plugin/schema'
+  codeSpaceExhaustedError,
+  creationIsServerOnlyError,
+  creationNeedsASessionError
+} from '@/plugin/errors/refusals'
+import { isServerCall } from '@/plugin/http/carrier'
+import { roomReport } from '@/plugin/http/report'
+import { MAX_STORED_INTEGER } from '@/plugin/schema/tables'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { creationStore } from '@/plugin/stores/rooms/creation'
 
+import type { GenericEndpointContext } from '@better-auth/core'
+
+import type { ActorStore } from '@/core/actor'
 import type { CodeFormat } from '@/security/code-format'
 import type { CodeIdentifier } from '@/security/code-identifier'
 import type { Unlinked } from '@/types/absence'
@@ -41,37 +45,42 @@ type CreateDeps = {
   readonly overHttp: boolean
 }
 
+const creatorOf = async (
+  ctx: GenericEndpointContext,
+  requested: Unlinked<string>,
+  overHttp: boolean
+): Promise<Unlinked<string>> => {
+  if (isServerCall(ctx)) return requested
+  if (!overHttp) throw creationIsServerOnlyError()
+
+  const session = await getSessionFromCtx(ctx)
+
+  if (session === null) throw creationNeedsASessionError()
+
+  return session.user.id
+}
+
+const actorIdOf = async (userId: string, store: ActorStore) =>
+  (await resolveActor({ userId, claim: null }, store)).id
+
 export const createEndpoint = (deps: CreateDeps) =>
   createAuthEndpoint(
     '/better-room/create',
     { method: 'POST', body: createBody },
     async ctx => {
       const { adapter, secret } = ctx.context
-      let createdBy: Unlinked<string> = null
+      const creator = await creatorOf(
+        ctx,
+        ctx.body.userId ?? null,
+        deps.overHttp
+      )
 
-      if (ctx.request === undefined) {
-        createdBy = ctx.body.userId ?? null
-      } else {
-        if (!deps.overHttp) throw serverOnlyError()
-
-        const session = await getSessionFromCtx(ctx)
-
-        if (session === null) throw unauthenticatedError()
-
-        createdBy = session.user.id
-      }
-
-      const actor =
-        createdBy === null
-          ? null
-          : await resolveActor(
-              { userId: createdBy, claim: null },
-              actorStore(adapter)
-            )
+      const createdBy =
+        creator === null ? null : await actorIdOf(creator, actorStore(adapter))
 
       const created = await createRoom(
         {
-          createdBy: actor === null ? null : actor.id,
+          createdBy,
           maxMembers: ctx.body.maxMembers ?? null,
           expiresAt: ctx.body.expiresAt ?? null,
           mint: minter(deps.format, deps.identify(secret)),
@@ -80,7 +89,7 @@ export const createEndpoint = (deps: CreateDeps) =>
         creationStore(adapter)
       )
 
-      if (created === null) throw exhaustedError()
+      if (created === null) throw codeSpaceExhaustedError()
 
       return ctx.json({ room: roomReport(created.room), code: created.code })
     }

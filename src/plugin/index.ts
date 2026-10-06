@@ -10,20 +10,20 @@ import { promoteEndpoint } from '@/plugin/endpoints/post/promote'
 import { reconcileEndpoint } from '@/plugin/endpoints/post/reconcile'
 import { revokeEndpoint } from '@/plugin/endpoints/post/revoke'
 import { rotateEndpoint } from '@/plugin/endpoints/post/rotate'
-import { erasureHooks } from '@/plugin/erasure'
-import { ROOM_ERROR_CODES } from '@/plugin/error-codes'
+import { ROOM_ERROR_CODES } from '@/plugin/errors/codes'
+import { erasureHooks } from '@/plugin/hooks/erasure'
 import { settingsOf } from '@/plugin/options'
-import { createRoomSchema } from '@/plugin/schema'
+import { createRoomSchema } from '@/plugin/schema/tables'
 import { generate } from '@/security/code-format'
 import { codeIdentifier } from '@/security/code-identifier'
 
-import type { BetterAuthPlugin } from 'better-auth/types'
+import type { BetterAuthPlugin } from 'better-auth'
 
 import type { RoomOptions } from '@/plugin/options'
 import type { CodeIdentifier } from '@/security/code-identifier'
 
 export const betterRoom = (options?: RoomOptions) => {
-  const { format, grace, grantLifetime, overHttp, perIp, everyone } =
+  const { format, grace, grantLifetime, overHttp, perIp, everyone, signal } =
     settingsOf(options)
 
   let identifier: CodeIdentifier | undefined
@@ -44,22 +44,32 @@ export const betterRoom = (options?: RoomOptions) => {
       boundSecret = context.secret
       await identify(context.secret)(generate(format))
 
-      return { options: { databaseHooks: erasureHooks(context.adapter) } }
+      return {
+        options: {
+          databaseHooks: erasureHooks(context.adapter, signal, context.logger)
+        }
+      }
     },
     endpoints: {
-      addRoomMember: addEndpoint(),
+      addRoomMember: addEndpoint(signal),
       getRoomAccess: accessEndpoint(),
       getRoomOccupancy: occupancyEndpoint(),
       createRoom: createEndpoint({ format, identify, overHttp }),
-      joinRoom: joinEndpoint({ identify, grantLifetime, perIp, everyone }),
-      leaveRoom: leaveEndpoint(),
+      joinRoom: joinEndpoint({
+        identify,
+        grantLifetime,
+        perIp,
+        everyone,
+        signal
+      }),
+      leaveRoom: leaveEndpoint(signal),
       listRoomMemberships: membershipsEndpoint(),
-      promoteRoomActor: promoteEndpoint(),
-      rotateRoomCode: rotateEndpoint({ format, identify, grace }),
-      revokeRoomMember: revokeEndpoint(),
-      lockRoom: lifecycleEndpoint('lock'),
-      unlockRoom: lifecycleEndpoint('unlock'),
-      closeRoom: lifecycleEndpoint('close'),
+      promoteRoomActor: promoteEndpoint(signal),
+      rotateRoomCode: rotateEndpoint({ format, identify, grace, signal }),
+      revokeRoomMember: revokeEndpoint(signal),
+      lockRoom: lifecycleEndpoint('lock', signal),
+      unlockRoom: lifecycleEndpoint('unlock', signal),
+      closeRoom: lifecycleEndpoint('close', signal),
       reconcileRoomCapacity: reconcileEndpoint()
     },
     schema: createRoomSchema(options?.schema),

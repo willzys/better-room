@@ -2,19 +2,19 @@ import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { reconcile } from '@/core/operations/capacity/reconciliation'
-import { reconciliationServerOnlyError } from '@/plugin/errors'
-import { reconciliationReport } from '@/plugin/report'
+import { reconciliationIsServerOnlyError } from '@/plugin/errors/refusals'
+import { isServerCall } from '@/plugin/http/carrier'
+import { reconciliationReport } from '@/plugin/http/report'
 import { reconciliationStore } from '@/plugin/stores/capacity/reconciliation'
 
-const DEFAULT_BATCH = 200
-const MAX_BATCH = 1000
+const BATCH = { fallback: 200, max: 1000 } as const
 
 const reconcileBody = z.object({
   batch: z
     .number()
     .int()
     .positive()
-    .max(MAX_BATCH)
+    .max(BATCH.max)
     .optional()
     .meta({ description: 'How many memberships one run may settle' })
 })
@@ -24,10 +24,10 @@ export const reconcileEndpoint = () =>
     '/better-room/reconcile',
     { method: 'POST', body: reconcileBody },
     async ctx => {
-      if (ctx.request !== undefined) throw reconciliationServerOnlyError()
+      if (!isServerCall(ctx)) throw reconciliationIsServerOnlyError()
 
       const reconciled = await reconcile(
-        { now: new Date(), batch: ctx.body.batch ?? DEFAULT_BATCH },
+        { now: new Date(), batch: ctx.body.batch ?? BATCH.fallback },
         reconciliationStore(ctx.context.adapter)
       )
 

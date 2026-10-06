@@ -3,17 +3,19 @@ import * as z from 'zod'
 
 import { findActor } from '@/core/actor'
 import { leave } from '@/core/operations/capacity/leave'
-import { carriersFrom } from '@/plugin/carrier'
-import { leaveError } from '@/plugin/errors'
-import { membershipReport } from '@/plugin/report'
+import { leaveError } from '@/plugin/errors/refusals'
+import { carriersFrom } from '@/plugin/http/carrier'
+import { membershipReport } from '@/plugin/http/report'
 import { leaveStore } from '@/plugin/stores/capacity/leave'
 import { actorStore } from '@/plugin/stores/identity/actor'
+
+import type { Signal } from '@/plugin/hooks/events'
 
 const leaveBody = z.object({
   roomId: z.string().meta({ description: 'The room the caller withdraws from' })
 })
 
-export const leaveEndpoint = () =>
+export const leaveEndpoint = (signal: Signal) =>
   createAuthEndpoint(
     '/better-room/leave',
     { method: 'POST', body: leaveBody },
@@ -32,6 +34,15 @@ export const leaveEndpoint = () =>
 
       if (!outcome.left) throw leaveError(outcome.refusal)
 
-      return ctx.json({ membership: membershipReport(outcome.membership) })
+      const membership = membershipReport(outcome.membership)
+
+      if (outcome.changed) {
+        await signal(
+          { type: 'left', roomId: membership.roomId, membership },
+          ctx.context.logger
+        )
+      }
+
+      return ctx.json({ membership })
     }
   )

@@ -1,22 +1,9 @@
-import { EXPIRY_BRANCHES } from '@/core/operations/reads/memberships'
-
 import type { Membership } from '@/core/membership'
 import type { Reconciliation } from '@/core/operations/capacity/reconciliation'
 import type { Promoted } from '@/core/operations/identity/promotion'
-import type {
-  ExpiryBranch,
-  Resumption
-} from '@/core/operations/reads/memberships'
 import type { Occupied } from '@/core/operations/reads/occupancy'
 import type { Room, RoomStatus } from '@/core/room'
-import type {
-  Exhausted,
-  Pending,
-  Perpetual,
-  Unbounded,
-  Resumable,
-  Unlinked
-} from '@/types/absence'
+import type { Pending, Perpetual, Unbounded, Unlinked } from '@/types/absence'
 
 export type RoomReport = {
   readonly id: string
@@ -99,27 +86,3 @@ export const promotionReport = (outcome: Promoted): PromotionReport => ({
   discarded: outcome.discarded,
   complete: outcome.complete
 })
-
-const BRANCH_TAGS = {
-  perpetual: 'p',
-  dated: 'd'
-} as const satisfies Record<ExpiryBranch, string>
-
-export const resumptionReport = (
-  resumption: Exhausted<Resumption>
-): Exhausted<string> =>
-  resumption === null
-    ? null
-    : `${BRANCH_TAGS[resumption.branch]}.${resumption.after ?? ''}`
-
-export const readResumption = (text: string): Resumable<Resumption> => {
-  const branch = EXPIRY_BRANCHES.find(name =>
-    text.startsWith(`${BRANCH_TAGS[name]}.`)
-  )
-
-  if (branch === undefined) return null
-
-  const after = text.slice(BRANCH_TAGS[branch].length + 1)
-
-  return { branch, after: after === '' ? null : after }
-}
