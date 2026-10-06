@@ -95,11 +95,18 @@ export const seatingStore = (adapter: DBAdapter): SeatingStore => {
 
   const reinstate = (membershipId: string) => take(membershipId, SEATABLE, {})
 
+  const readmit = (membershipId: string, terms: Terms) =>
+    take(membershipId, SEATABLE, {
+      role: terms.role,
+      expiresAt: terms.expiresAt
+    })
+
   return {
     admit,
     enroll,
     occupy,
     reinstate,
+    readmit,
     lowerCount: lowering(adapter),
     survives: survivalLookup(adapter),
     erasure: erasureStore(adapter)

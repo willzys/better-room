@@ -4,6 +4,7 @@ import { hasEnded } from '@/core/room'
 import type { Membership } from '@/core/membership'
 import type {
   ActorLink,
+  Seated,
   SeatingStore
 } from '@/core/operations/admission/seating'
 import type { Room } from '@/core/room'
@@ -47,8 +48,15 @@ const refuse = (refusal: AdditionRefusal): AdditionOutcome => ({
   refusal
 })
 
-const heldAlready = (membership: Membership): AdditionOutcome =>
-  refuse(membership.revokedAt === null ? 'already-a-member' : 'revoked')
+const standing = (membership: Membership): AdditionOutcome | Absent => {
+  if (membership.revokedAt !== null) return refuse('revoked')
+  if (membership.leftAt === null) return refuse('already-a-member')
+
+  return null
+}
+
+const blockedBy = (membership: Usable<Membership>) =>
+  membership === null ? null : standing(membership)
 
 const admits = (room: Room, now: Date): AdditionRefusal | Absent => {
   if (!hasEnded(room, now)) return null
@@ -65,10 +73,21 @@ const turnedAway = async (
     store.membership(request.roomId, request.actor.id)
   ])
 
-  if (membership !== null) return heldAlready(membership)
+  const blocked = blockedBy(membership)
+
+  if (blocked !== null) return blocked
   if (room === null) return refuse('unknown-room')
 
   return refuse(admits(room, request.now) ?? 'at-capacity')
+}
+
+const settled = (seated: Usable<Seated>): AdditionOutcome => {
+  if (seated === null) return refuse('contended')
+  if (!seated.occupied) {
+    return standing(seated.membership) ?? refuse('contended')
+  }
+
+  return { added: true, membership: seated.membership }
 }
 
 export const addMember = async (
@@ -88,8 +107,9 @@ export const addMember = async (
   if (refusal !== null) return refuse(refusal)
 
   const existing = await store.membership(room.id, request.actor.id)
+  const blocked = blockedBy(existing)
 
-  if (existing !== null) return heldAlready(existing)
+  if (blocked !== null) return blocked
 
   const admitted = await store.admit(room.id, room.maxMembers, ADDABLE)
 
@@ -97,14 +117,10 @@ export const addMember = async (
 
   const terms = { role: request.role, expiresAt: request.expiresAt }
   const seated = await seat(
-    { room, actor: request.actor, terms, existing },
+    { room, actor: request.actor, terms, existing, returning: 'readmission' },
     store
   )
   const survives = await remains(request.actor, request.now, store)
 
-  if (!survives) return refuse('unknown-actor')
-  if (seated === null) return refuse('contended')
-  if (!seated.occupied) return refuse('already-a-member')
-
-  return { added: true, membership: seated.membership }
+  return survives ? settled(seated) : refuse('unknown-actor')
 }
