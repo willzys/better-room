@@ -1,44 +1,36 @@
 import { membershipRefusal } from '@/core/membership'
+import { remains, seat } from '@/core/operations/admission/seating'
 import { roomRefusal } from '@/core/room'
 import { isResolvable } from '@/core/room-code'
 
 import type { Actor } from '@/core/actor'
 import type { Membership, MembershipRefusal } from '@/core/membership'
+import type { SeatingStore, Terms } from '@/core/operations/admission/seating'
 import type { Room, RoomRefusal } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
-import type { Perpetual, Unbounded, Usable } from '@/types/absence'
+import type { Absent, Usable } from '@/types/absence'
 
-const JOINED_ROLE = 'participant'
+const JOINED: Terms = { role: 'participant', expiresAt: null }
 
-export type Enrolment = {
-  readonly roomId: string
-  readonly actorId: string
-  readonly role: string
-  readonly expiresAt: Perpetual<Date>
-}
+const JOINABLE = ['active'] as const
+
+const JOIN_ATTEMPTS = 3
 
 export type JoinRefusal =
   | MembershipRefusal
   | RoomRefusal
   | 'at-capacity'
+  | 'contended'
+  | 'unknown-actor'
   | 'unresolved'
 
-export type Seated = {
-  readonly membership: Membership
-  readonly occupied: boolean
-}
-
-export type JoinStore = {
+export type JoinStore = SeatingStore & {
   readonly code: (identifier: string) => Promise<Usable<RoomCode>>
   readonly room: (id: string) => Promise<Usable<Room>>
   readonly membership: (
     roomId: string,
     actorId: string
   ) => Promise<Usable<Membership>>
-  readonly admit: (roomId: string, limit: Unbounded<number>) => Promise<boolean>
-  readonly enroll: (member: Enrolment) => Promise<Seated>
-  readonly reinstate: (membershipId: string) => Promise<Seated>
-  readonly lowerCount: (roomId: string) => Promise<void>
 }
 
 export type JoinRequest = {
@@ -53,38 +45,91 @@ export type JoinOutcome =
       readonly admitted: true
       readonly actor: Actor
       readonly membership: Membership
+      readonly changed: boolean
     }
+
+type Joining = {
+  readonly room: Room
+  readonly actor: Actor
+  readonly now: Date
+  readonly store: JoinStore
+}
 
 const refuse = (refusal: JoinRefusal): JoinOutcome => ({
   admitted: false,
   refusal
 })
 
-const admit = (actor: Actor, membership: Membership): JoinOutcome => ({
-  admitted: true,
-  actor,
-  membership
-})
-
-const seat = async (
-  room: Room,
+const admit = (
   actor: Actor,
-  existing: Usable<Membership>,
-  store: JoinStore
-): Promise<Membership> => {
-  const seated =
-    existing === null
-      ? await store.enroll({
-          roomId: room.id,
-          actorId: actor.id,
-          role: JOINED_ROLE,
-          expiresAt: null
-        })
-      : await store.reinstate(existing.id)
+  membership: Membership,
+  changed: boolean
+): JoinOutcome => ({ admitted: true, actor, membership, changed })
 
-  if (!seated.occupied) await store.lowerCount(room.id)
+const settledBy = (
+  joining: Joining,
+  membership: Membership
+): JoinOutcome | Absent => {
+  const refusal = membershipRefusal(membership, joining.now)
 
-  return seated.membership
+  if (refusal !== null) return refuse(refusal)
+  if (membership.leftAt !== null) return null
+
+  return admit(joining.actor, membership, false)
+}
+
+const turnedAway = async (joining: Joining): Promise<JoinOutcome> => {
+  const [room, membership] = await Promise.all([
+    joining.store.room(joining.room.id),
+    joining.store.membership(joining.room.id, joining.actor.id)
+  ])
+  const settled = membership === null ? null : settledBy(joining, membership)
+
+  if (settled !== null) return settled
+  if (room === null) return refuse('unresolved')
+
+  return refuse(roomRefusal(room, joining.now) ?? 'at-capacity')
+}
+
+const seated = async (
+  joining: Joining,
+  existing: Usable<Membership>
+): Promise<JoinOutcome | Absent> => {
+  const { room, actor, now, store } = joining
+  const taken = await seat({ room, actor, terms: JOINED, existing }, store)
+  const survives = await remains(actor, now, store)
+
+  if (!survives) return refuse('unknown-actor')
+  if (taken === null) return null
+  if (!taken.occupied) return settledBy(joining, taken.membership)
+
+  const overtaken = membershipRefusal(taken.membership, now)
+
+  return overtaken === null
+    ? admit(actor, taken.membership, true)
+    : refuse(overtaken)
+}
+
+const seating = async (
+  joining: Joining,
+  attempts: number
+): Promise<JoinOutcome> => {
+  const { room, actor, store } = joining
+  const existing = await store.membership(room.id, actor.id)
+  const settled = existing === null ? null : settledBy(joining, existing)
+
+  if (settled !== null) return settled
+
+  const admitted = await store.admit(room.id, room.maxMembers, JOINABLE)
+
+  if (!admitted) return turnedAway(joining)
+
+  const outcome = await seated(joining, existing)
+
+  if (outcome !== null) return outcome
+  if (attempts === 0) return refuse('contended')
+
+  return seating(joining, attempts - 1)
 }
 
 export const join = async (
@@ -106,18 +151,6 @@ export const join = async (
   if (refusal !== null) return refuse(refusal)
 
   const actor = await request.actor()
-  const existing = await store.membership(room.id, actor.id)
 
-  if (existing !== null) {
-    const held = membershipRefusal(existing, request.now)
-
-    if (held !== null) return refuse(held)
-    if (existing.leftAt === null) return admit(actor, existing)
-  }
-
-  if (!(await store.admit(room.id, room.maxMembers))) {
-    return refuse('at-capacity')
-  }
-
-  return admit(actor, await seat(room, actor, existing, store))
+  return seating({ room, actor, now: request.now, store }, JOIN_ATTEMPTS)
 }

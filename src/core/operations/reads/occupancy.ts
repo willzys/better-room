@@ -28,16 +28,21 @@ export type OccupancyOutcome =
   | { readonly read: false; readonly refusal: OccupancyRefusal }
   | Occupied
 
+const refuse = (refusal: OccupancyRefusal): OccupancyOutcome => ({
+  read: false,
+  refusal
+})
+
 export const readOccupancy = async (
   request: OccupancyRequest,
   store: OccupancyStore
 ): Promise<OccupancyOutcome> => {
   const access = await readAccess(request, store)
 
-  if (!access.found) return { read: false, refusal: 'unknown-room' }
+  if (!access.found) return refuse('unknown-room')
 
   if (!request.fromServer && !access.authorized) {
-    return { read: false, refusal: 'not-a-member' }
+    return refuse('not-a-member')
   }
 
   return {

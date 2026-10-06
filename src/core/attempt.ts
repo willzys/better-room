@@ -1,6 +1,6 @@
 import type { Usable } from '@/types/absence'
 
-const MAX_RETRIES = 3
+const RECORD_ATTEMPTS = 3
 
 export type Attempt = {
   key: string
@@ -49,38 +49,49 @@ export const isBlocked = (
   (isExhausted(counted.everyone, limits.everyone, now) &&
     live(counted.mine, limits.perIp, now))
 
-const tryRecord = async (
-  request: { key: string; limit: AttemptLimit; now: Date },
-  store: AttemptStore,
-  retries: number
-): Promise<boolean> => {
-  if (retries === 0) return false
-
-  const floor = new Date(request.now.getTime() - request.limit.window * 1000)
-  const existing = await store.read(request.key)
-
-  if (existing === null) {
-    if (await store.open(request.key, request.now)) return true
-
-    return tryRecord(request, store, retries - 1)
-  }
-
-  if (elapsed(existing, request.limit, request.now)) {
-    if (await store.restart(request.key, existing.lastAttemptAt, request.now)) {
-      await store.prune(floor)
-
-      return true
-    }
-
-    return tryRecord(request, store, retries - 1)
-  }
-
-  if (await store.bump(request.key, floor, request.now)) return true
-
-  return tryRecord(request, store, retries - 1)
+type Recording = {
+  readonly key: string
+  readonly limit: AttemptLimit
+  readonly now: Date
 }
 
-export const recordAttempt = (
-  request: { key: string; limit: AttemptLimit; now: Date },
+const floorOf = (request: Recording) =>
+  new Date(request.now.getTime() - request.limit.window * 1000)
+
+const recordOnce = async (
+  request: Recording,
   store: AttemptStore
-) => tryRecord(request, store, MAX_RETRIES)
+): Promise<boolean> => {
+  const existing = await store.read(request.key)
+
+  if (existing === null) return store.open(request.key, request.now)
+
+  if (!elapsed(existing, request.limit, request.now)) {
+    return store.bump(request.key, floorOf(request), request.now)
+  }
+
+  const restarted = await store.restart(
+    request.key,
+    existing.lastAttemptAt,
+    request.now
+  )
+
+  if (restarted) await store.prune(floorOf(request))
+
+  return restarted
+}
+
+const tryRecord = async (
+  request: Recording,
+  store: AttemptStore,
+  attempts: number
+): Promise<boolean> => {
+  if (attempts === 0) return false
+
+  const recorded = await recordOnce(request, store)
+
+  return recorded || tryRecord(request, store, attempts - 1)
+}
+
+export const recordAttempt = (request: Recording, store: AttemptStore) =>
+  tryRecord(request, store, RECORD_ATTEMPTS)
