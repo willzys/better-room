@@ -23,6 +23,8 @@ export type Seated = {
 
 export type ActorLink = Pick<Actor, 'id' | 'userId'>
 
+export type Return = 'rejoin' | 'readmission'
+
 export type SeatingStore = {
   readonly admit: (
     roomId: string,
@@ -35,6 +37,10 @@ export type SeatingStore = {
     terms: Terms
   ) => Promise<Usable<Seated>>
   readonly reinstate: (membershipId: string) => Promise<Usable<Seated>>
+  readonly readmit: (
+    membershipId: string,
+    terms: Terms
+  ) => Promise<Usable<Seated>>
   readonly lowerCount: (roomId: string) => Promise<void>
   readonly survives: (actor: ActorLink) => Promise<boolean>
   readonly erasure: ErasureStore
@@ -45,6 +51,7 @@ export type Seating = {
   readonly actor: ActorLink
   readonly terms: Terms
   readonly existing: Usable<Membership>
+  readonly returning: Return
 }
 
 const vacancy = async (
@@ -70,6 +77,16 @@ const vacancy = async (
   }
 }
 
+const taken = (membershipId: string, seating: Seating, store: SeatingStore) => {
+  if (seating.existing === null) {
+    return store.occupy(membershipId, seating.terms)
+  }
+
+  return seating.returning === 'rejoin'
+    ? store.reinstate(membershipId)
+    : store.readmit(membershipId, seating.terms)
+}
+
 export const seat = async (
   seating: Seating,
   store: SeatingStore
@@ -78,10 +95,7 @@ export const seat = async (
 
   if (vacant === null) return null
 
-  const seated =
-    seating.existing === null
-      ? await store.occupy(vacant.id, seating.terms)
-      : await store.reinstate(vacant.id)
+  const seated = await taken(vacant.id, seating, store)
 
   if (seated === null || !seated.occupied) {
     await store.lowerCount(seating.room.id)

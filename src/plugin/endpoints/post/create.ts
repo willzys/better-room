@@ -5,7 +5,7 @@ import { resolveActor } from '@/core/actor'
 import { createRoom } from '@/core/operations/rooms/creation'
 import { minter } from '@/plugin/codes/mint'
 import {
-  codeSpaceExhaustedError,
+  creationError,
   creationIsServerOnlyError,
   creationNeedsASessionError
 } from '@/plugin/errors/refusals'
@@ -18,6 +18,7 @@ import { creationStore } from '@/plugin/stores/rooms/creation'
 import type { GenericEndpointContext } from '@better-auth/core'
 
 import type { ActorStore } from '@/core/actor'
+import type { Signal } from '@/plugin/hooks/events'
 import type { CodeFormat } from '@/security/code-format'
 import type { CodeIdentifier } from '@/security/code-identifier'
 import type { Unlinked } from '@/types/absence'
@@ -43,6 +44,7 @@ type CreateDeps = {
   readonly format: CodeFormat
   readonly identify: (secret: string) => CodeIdentifier
   readonly overHttp: boolean
+  readonly signal: Signal
 }
 
 const creatorOf = async (
@@ -89,8 +91,15 @@ export const createEndpoint = (deps: CreateDeps) =>
         creationStore(adapter)
       )
 
-      if (created === null) throw codeSpaceExhaustedError()
+      if (!created.created) throw creationError(created.refusal)
 
-      return ctx.json({ room: roomReport(created.room), code: created.code })
+      const room = roomReport(created.room)
+
+      await deps.signal(
+        { type: 'created', roomId: room.id, room },
+        ctx.context.logger
+      )
+
+      return ctx.json({ room, code: created.code })
     }
   )

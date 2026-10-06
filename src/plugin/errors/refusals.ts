@@ -9,6 +9,7 @@ import type { RevocationRefusal } from '@/core/operations/capacity/revocation'
 import type { RotationRefusal } from '@/core/operations/codes/rotation'
 import type { PromotionRefusal } from '@/core/operations/identity/promotion'
 import type { OccupancyRefusal } from '@/core/operations/reads/occupancy'
+import type { CreationRefusal } from '@/core/operations/rooms/creation'
 import type { LifecycleRefusal } from '@/core/operations/rooms/lifecycle'
 
 type RoomError = {
@@ -43,9 +44,18 @@ export const joinError = refusing<JoinRefusal>({
   'membership-expired': ['FORBIDDEN', ROOM_ERROR_CODES.MEMBERSHIP_EXPIRED]
 })
 
+export const creationError = refusing<CreationRefusal>({
+  'expires-in-the-past': [
+    'BAD_REQUEST',
+    ROOM_ERROR_CODES.ROOM_EXPIRES_IN_THE_PAST
+  ],
+  exhausted: ['SERVICE_UNAVAILABLE', ROOM_ERROR_CODES.CODE_SPACE_EXHAUSTED]
+})
+
 export const rotationError = refusing<RotationRefusal>({
   'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
   closed: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_CLOSED],
+  expired: ['FORBIDDEN', ROOM_ERROR_CODES.ROOM_EXPIRED],
   exhausted: ['SERVICE_UNAVAILABLE', ROOM_ERROR_CODES.CODE_SPACE_EXHAUSTED]
 })
 
@@ -56,6 +66,7 @@ export const additionError = refusing<AdditionRefusal>({
     ROOM_ERROR_CODES.MEMBERSHIP_EXPIRES_IN_THE_PAST
   ],
   'already-a-member': ['CONFLICT', ROOM_ERROR_CODES.ALREADY_A_MEMBER],
+  revoked: ['FORBIDDEN', ROOM_ERROR_CODES.MEMBERSHIP_REVOKED],
   'at-capacity': ['CONFLICT', ROOM_ERROR_CODES.ROOM_AT_CAPACITY],
   contended: ['CONFLICT', ROOM_ERROR_CODES.ROOM_CONTENDED],
   'unknown-actor': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ACTOR],
@@ -106,11 +117,6 @@ export const creationIsServerOnlyError = failing(
 export const creationNeedsASessionError = failing(
   'UNAUTHORIZED',
   ROOM_ERROR_CODES.CREATION_NEEDS_A_SESSION
-)
-
-export const codeSpaceExhaustedError = failing(
-  'SERVICE_UNAVAILABLE',
-  ROOM_ERROR_CODES.CODE_SPACE_EXHAUSTED
 )
 
 export const rotationIsServerOnlyError = failing(

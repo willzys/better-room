@@ -96,7 +96,10 @@ const seated = async (
   existing: Usable<Membership>
 ): Promise<JoinOutcome | Absent> => {
   const { room, actor, now, store } = joining
-  const taken = await seat({ room, actor, terms: JOINED, existing }, store)
+  const taken = await seat(
+    { room, actor, terms: JOINED, existing, returning: 'rejoin' },
+    store
+  )
   const survives = await remains(actor, now, store)
 
   if (!survives) return refuse('unknown-actor')

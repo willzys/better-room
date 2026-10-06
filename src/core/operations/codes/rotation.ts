@@ -1,10 +1,15 @@
+import { hasEnded } from '@/core/room'
 import { issueCode } from '@/core/room-code'
 
 import type { Room } from '@/core/room'
 import type { CodeIssuer, Mint } from '@/core/room-code'
 import type { Usable } from '@/types/absence'
 
-export type RotationRefusal = 'closed' | 'exhausted' | 'unknown-room'
+export type RotationRefusal =
+  | 'closed'
+  | 'exhausted'
+  | 'expired'
+  | 'unknown-room'
 
 export type RotationStore = CodeIssuer & {
   readonly room: (id: string) => Promise<Usable<Room>>
@@ -40,7 +45,9 @@ export const rotateCode = async (
   const room = await store.room(request.roomId)
 
   if (room === null) return refuse('unknown-room')
-  if (room.status === 'closed') return refuse('closed')
+  if (hasEnded(room, request.now)) {
+    return refuse(room.status === 'closed' ? 'closed' : 'expired')
+  }
 
   await store.retireGrace(request.roomId, request.now)
 

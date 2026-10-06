@@ -54,7 +54,7 @@ export const betterRoom = (options?: RoomOptions) => {
       addRoomMember: addEndpoint(signal),
       getRoomAccess: accessEndpoint(),
       getRoomOccupancy: occupancyEndpoint(),
-      createRoom: createEndpoint({ format, identify, overHttp }),
+      createRoom: createEndpoint({ format, identify, overHttp, signal }),
       joinRoom: joinEndpoint({
         identify,
         grantLifetime,
@@ -70,7 +70,7 @@ export const betterRoom = (options?: RoomOptions) => {
       lockRoom: lifecycleEndpoint('lock', signal),
       unlockRoom: lifecycleEndpoint('unlock', signal),
       closeRoom: lifecycleEndpoint('close', signal),
-      reconcileRoomCapacity: reconcileEndpoint()
+      reconcileRoomCapacity: reconcileEndpoint(signal)
     },
     schema: createRoomSchema(options?.schema),
     $ERROR_CODES: ROOM_ERROR_CODES
