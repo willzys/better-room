@@ -2,9 +2,15 @@ import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { revokeMember } from '@/core/operations/capacity/revocation'
-import { revocationError, revocationServerOnlyError } from '@/plugin/errors'
-import { membershipReport } from '@/plugin/report'
+import {
+  revocationError,
+  revocationIsServerOnlyError
+} from '@/plugin/errors/refusals'
+import { isServerCall } from '@/plugin/http/carrier'
+import { membershipReport } from '@/plugin/http/report'
 import { revocationStore } from '@/plugin/stores/capacity/revocation'
+
+import type { Signal } from '@/plugin/hooks/events'
 
 const revokeBody = z.object({
   roomId: z
@@ -15,12 +21,12 @@ const revokeBody = z.object({
     .meta({ description: 'The actor whose membership is withdrawn' })
 })
 
-export const revokeEndpoint = () =>
+export const revokeEndpoint = (signal: Signal) =>
   createAuthEndpoint(
     '/better-room/revoke-member',
     { method: 'POST', body: revokeBody },
     async ctx => {
-      if (ctx.request !== undefined) throw revocationServerOnlyError()
+      if (!isServerCall(ctx)) throw revocationIsServerOnlyError()
 
       const outcome = await revokeMember(
         {
@@ -33,6 +39,13 @@ export const revokeEndpoint = () =>
 
       if (!outcome.revoked) throw revocationError(outcome.refusal)
 
-      return ctx.json({ membership: membershipReport(outcome.membership) })
+      const membership = membershipReport(outcome.membership)
+
+      await signal(
+        { type: 'revoked', roomId: membership.roomId, membership },
+        ctx.context.logger
+      )
+
+      return ctx.json({ membership })
     }
   )

@@ -1,6 +1,11 @@
 import type { Pending, Perpetual, Usable } from '@/types/absence'
 
-export type RoomCodeStatus = 'active' | 'grace' | 'revoked'
+export const ROOM_CODE_STATUSES = ['active', 'grace', 'revoked'] as const
+
+export type RoomCodeStatus = (typeof ROOM_CODE_STATUSES)[number]
+
+export const isRoomCodeStatus = (value: string): value is RoomCodeStatus =>
+  ROOM_CODE_STATUSES.some(status => status === value)
 
 export type RoomCode = {
   id: string

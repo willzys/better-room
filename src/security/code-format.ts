@@ -1,10 +1,11 @@
 import type { Usable } from '@/types/absence'
 
-const MIN_LENGTH = 1
-const MAX_LENGTH = 64
-const MAX_INPUT_LENGTH = 1024
-
-const SEPARATORS = /[\s-]+/g
+const CODE = {
+  minLength: 1,
+  maxLength: 64,
+  maxInput: 1024,
+  separators: /[\s-]+/g
+} as const
 
 type FormatSpec = {
   readonly symbols: string
@@ -12,7 +13,12 @@ type FormatSpec = {
   readonly aliases: Readonly<Record<string, string>>
 }
 
-export type CodeFormatName = 'crockford' | 'numeric'
+export const CODE_FORMAT_NAMES = ['crockford', 'numeric'] as const
+
+export type CodeFormatName = (typeof CODE_FORMAT_NAMES)[number]
+
+export const isCodeFormatName = (value: unknown): value is CodeFormatName =>
+  CODE_FORMAT_NAMES.some(name => name === value)
 
 export type CodeFormat = {
   readonly symbols: string
@@ -55,7 +61,7 @@ const canonicalizerOf = (spec: FormatSpec) => {
   return (input: string): Usable<string> => {
     let canonical = ''
 
-    for (const character of input.replace(SEPARATORS, '')) {
+    for (const character of input.replace(CODE.separators, '')) {
       const symbol = folding.get(character)
 
       if (symbol === undefined) return null
@@ -76,11 +82,11 @@ export const codeFormat = (
 
   if (
     !Number.isInteger(resolved) ||
-    resolved < MIN_LENGTH ||
-    resolved > MAX_LENGTH
+    resolved < CODE.minLength ||
+    resolved > CODE.maxLength
   ) {
     throw new RangeError(
-      `room code length must be an integer between ${MIN_LENGTH} and ${MAX_LENGTH}`
+      `room code length must be an integer between ${CODE.minLength} and ${CODE.maxLength}`
     )
   }
 
@@ -95,7 +101,7 @@ export const normalize = (
   input: string,
   format: CodeFormat
 ): Usable<string> => {
-  if (input.length > MAX_INPUT_LENGTH) return null
+  if (input.length > CODE.maxInput) return null
 
   const canonical = format.canonicalize(input)
 

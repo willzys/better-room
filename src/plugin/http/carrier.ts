@@ -32,6 +32,9 @@ const carriersOf = (
   claim: claimOf(signed, now)
 })
 
+export const isServerCall = (ctx: Pick<GenericEndpointContext, 'request'>) =>
+  ctx.request === undefined
+
 export const carriersFrom = async (
   ctx: GenericEndpointContext,
   now: Date

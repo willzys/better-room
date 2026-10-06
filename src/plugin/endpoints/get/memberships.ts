@@ -3,13 +3,9 @@ import * as z from 'zod'
 
 import { findActor } from '@/core/actor'
 import { readMemberships } from '@/core/operations/reads/memberships'
-import { carriersFrom } from '@/plugin/carrier'
-import {
-  membershipReport,
-  readResumption,
-  resumptionReport,
-  roomReport
-} from '@/plugin/report'
+import { carriersFrom } from '@/plugin/http/carrier'
+import { readCursor, writeCursor } from '@/plugin/http/cursor'
+import { membershipReport, roomReport } from '@/plugin/http/report'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { membershipsStore } from '@/plugin/stores/reads/memberships'
 
@@ -18,7 +14,7 @@ const membershipsQuery = z
     before: z
       .string()
       .transform((text, issues) => {
-        const resumption = readResumption(text)
+        const resumption = readCursor(text)
 
         if (resumption === null) {
           issues.addIssue({
@@ -61,7 +57,7 @@ export const membershipsEndpoint = () =>
           room: roomReport(entry.room)
         })),
         complete: listed.complete,
-        next: resumptionReport(listed.next)
+        next: writeCursor(listed.next)
       })
     }
   )

@@ -3,9 +3,9 @@ import * as z from 'zod'
 
 import { findActor } from '@/core/actor'
 import { readOccupancy } from '@/core/operations/reads/occupancy'
-import { carriersFrom } from '@/plugin/carrier'
-import { occupancyError } from '@/plugin/errors'
-import { occupancyReport } from '@/plugin/report'
+import { occupancyError } from '@/plugin/errors/refusals'
+import { carriersFrom, isServerCall } from '@/plugin/http/carrier'
+import { occupancyReport } from '@/plugin/http/report'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { occupancyStore } from '@/plugin/stores/reads/occupancy'
 
@@ -29,7 +29,7 @@ export const occupancyEndpoint = () =>
         {
           roomId: ctx.query.roomId,
           actor,
-          fromServer: ctx.request === undefined,
+          fromServer: isServerCall(ctx),
           now
         },
         occupancyStore(adapter)

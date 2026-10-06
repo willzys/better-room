@@ -28,14 +28,19 @@ export type RotationOutcome =
   | { readonly rotated: false; readonly refusal: RotationRefusal }
   | { readonly rotated: true; readonly code: string }
 
+const refuse = (refusal: RotationRefusal): RotationOutcome => ({
+  rotated: false,
+  refusal
+})
+
 export const rotateCode = async (
   request: RotationRequest,
   store: RotationStore
 ): Promise<RotationOutcome> => {
   const room = await store.room(request.roomId)
 
-  if (room === null) return { rotated: false, refusal: 'unknown-room' }
-  if (room.status === 'closed') return { rotated: false, refusal: 'closed' }
+  if (room === null) return refuse('unknown-room')
+  if (room.status === 'closed') return refuse('closed')
 
   await store.retireGrace(request.roomId, request.now)
 
@@ -51,7 +56,7 @@ export const rotateCode = async (
     store
   )
 
-  if (minted === null) return { rotated: false, refusal: 'exhausted' }
+  if (minted === null) return refuse('exhausted')
 
   if (replaced.length > 0) {
     await store.demoteOthers(

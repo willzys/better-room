@@ -25,7 +25,11 @@ export type LeaveRequest = {
 
 export type LeaveOutcome =
   | { readonly left: false; readonly refusal: LeaveRefusal }
-  | { readonly left: true; readonly membership: Membership }
+  | {
+      readonly left: true
+      readonly membership: Membership
+      readonly changed: boolean
+    }
 
 const refuse = (refusal: LeaveRefusal): LeaveOutcome => ({
   left: false,
@@ -51,8 +55,21 @@ export const leave = async (
 
   const withdrawn = await release(held, request.now, store, 'left')
 
-  return {
-    left: true,
-    membership: withdrawn ? { ...held, leftAt: request.now } : held
+  if (withdrawn) {
+    return {
+      left: true,
+      membership: { ...held, leftAt: request.now },
+      changed: true
+    }
   }
+
+  const current = await store.membership(request.roomId, request.actor.id)
+
+  if (current === null) return refuse('not-a-member')
+
+  const settled = membershipRefusal(current, request.now)
+
+  if (settled !== null) return refuse(settled)
+
+  return { left: true, membership: current, changed: false }
 }

@@ -3,9 +3,9 @@ import * as z from 'zod'
 
 import { findActor } from '@/core/actor'
 import { readAccess } from '@/core/operations/reads/access'
-import { carriersFrom } from '@/plugin/carrier'
-import { unknownRoomError } from '@/plugin/errors'
-import { membershipReport, roomReport } from '@/plugin/report'
+import { unknownRoomError } from '@/plugin/errors/refusals'
+import { carriersFrom } from '@/plugin/http/carrier'
+import { membershipReport, roomReport } from '@/plugin/http/report'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { accessStore } from '@/plugin/stores/reads/access'
 

@@ -1,36 +1,41 @@
-import { byIdentifier, MODELS } from '@/plugin/stores/rows'
+import { writeOrConfirm } from '@/plugin/stores/collision'
+import { codeTable } from '@/plugin/stores/table'
+import { byIdentifier } from '@/plugin/stores/where'
 
 import type { DBAdapter } from 'better-auth/types'
 
-import type { CodeRow, Input } from '@/plugin/stores/rows'
+export const codeStore = (adapter: DBAdapter) => {
+  const codes = codeTable(adapter)
 
-export const codeIssuer = (adapter: DBAdapter) => ({
-  issueCode: async (
+  const issueCode = (
     identifier: string,
     roomId: string,
     at: Date,
     replacing: readonly string[]
-  ) => {
-    try {
-      await adapter.create<Input, CodeRow>({
-        model: MODELS.code,
-        data: { identifier, roomId, status: 'active', createdAt: at }
-      })
+  ) =>
+    writeOrConfirm(
+      async () => {
+        await codes.create({
+          identifier,
+          roomId,
+          status: 'active',
+          createdAt: at
+        })
 
-      return true
-    } catch (error) {
-      const taken = await adapter.findOne<CodeRow>({
-        model: MODELS.code,
-        where: byIdentifier(identifier)
-      })
+        return true
+      },
+      async () => {
+        const taken = await codes.findOne(byIdentifier(identifier))
 
-      if (taken === null) throw error
+        if (taken === null) return null
 
-      return (
-        taken.roomId === roomId &&
-        taken.status === 'active' &&
-        !replacing.includes(identifier)
-      )
-    }
-  }
-})
+        return (
+          taken.roomId === roomId &&
+          taken.status === 'active' &&
+          !replacing.includes(identifier)
+        )
+      }
+    )
+
+  return { issueCode }
+}

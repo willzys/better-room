@@ -1,22 +1,23 @@
-import { codeIssuer } from '@/plugin/stores/codes/code'
-import { MODELS, toRoom } from '@/plugin/stores/rows'
+import { codeStore } from '@/plugin/stores/codes/code'
+import { toRoom } from '@/plugin/stores/rows'
+import { roomTable } from '@/plugin/stores/table'
 
 import type { DBAdapter } from 'better-auth/types'
 
 import type { CreationStore } from '@/core/operations/rooms/creation'
-import type { Input, RoomRow } from '@/plugin/stores/rows'
 
-export const creationStore = (adapter: DBAdapter): CreationStore => ({
-  ...codeIssuer(adapter),
-  openRoom: async room =>
-    toRoom(
-      await adapter.create<Input, RoomRow>({
-        model: MODELS.room,
-        data: {
+export const creationStore = (adapter: DBAdapter): CreationStore => {
+  const rooms = roomTable(adapter)
+
+  return {
+    ...codeStore(adapter),
+    openRoom: async room =>
+      toRoom(
+        await rooms.create({
           createdBy: room.createdBy,
           maxMembers: room.maxMembers,
           expiresAt: room.expiresAt
-        }
-      })
-    )
-})
+        })
+      )
+  }
+}

@@ -1,28 +1,28 @@
 import { releaseStore } from '@/plugin/stores/capacity/release'
-import { MODELS, OCCUPIED, toMembership } from '@/plugin/stores/rows'
+import { toMembership } from '@/plugin/stores/rows'
+import { memberTable } from '@/plugin/stores/table'
+import { OCCUPIED } from '@/plugin/stores/where'
 
-import type { DBAdapter, Where } from 'better-auth/types'
+import type { DBAdapter } from 'better-auth/types'
 
 import type { Membership } from '@/core/membership'
 import type { ReconciliationStore } from '@/core/operations/capacity/reconciliation'
 import type { MemberRow } from '@/plugin/stores/rows'
+import type { Clause } from '@/plugin/stores/where'
 
 export const reconciliationStore = (
   adapter: DBAdapter
-): ReconciliationStore => ({
-  ...releaseStore(adapter),
-  owing: async (now, batch) => {
-    const owing = (where: Where[]) =>
-      adapter.findMany<MemberRow>({
-        model: MODELS.member,
-        where: [OCCUPIED, ...where],
-        limit: batch
-      })
+): ReconciliationStore => {
+  const members = memberTable(adapter)
+
+  const owing = async (now: Date, batch: number) => {
+    const holding = (where: Clause<MemberRow>[]) =>
+      members.findMany({ where: [OCCUPIED, ...where], limit: batch })
 
     const pages = await Promise.all([
-      owing([{ field: 'expiresAt', operator: 'lte', value: now }]),
-      owing([{ field: 'leftAt', operator: 'ne', value: null }]),
-      owing([{ field: 'revokedAt', operator: 'ne', value: null }])
+      holding([{ field: 'expiresAt', operator: 'lte', value: now }]),
+      holding([{ field: 'leftAt', operator: 'ne', value: null }]),
+      holding([{ field: 'revokedAt', operator: 'ne', value: null }])
     ])
 
     const seen = new Map<string, Membership>()
@@ -37,4 +37,6 @@ export const reconciliationStore = (
 
     return [...seen.values()]
   }
-})
+
+  return { ...releaseStore(adapter), owing }
+}

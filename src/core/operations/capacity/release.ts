@@ -17,7 +17,9 @@ export const release = async (
   store: ReleaseStore,
   withdrawal: Withdrawal
 ): Promise<boolean> => {
-  if (!(await store.endOccupancy(membership.id, at, withdrawal))) return false
+  const ended = await store.endOccupancy(membership.id, at, withdrawal)
+
+  if (!ended) return false
 
   await store.lowerCount(membership.roomId)
 

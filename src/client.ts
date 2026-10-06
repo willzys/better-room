@@ -1,4 +1,4 @@
-import type { BetterAuthClientPlugin } from 'better-auth/types'
+import type { BetterAuthClientPlugin } from 'better-auth/client'
 
 import type { betterRoom } from '@/plugin'
 
@@ -21,4 +21,4 @@ export const betterRoomClient = () =>
     }
   }) satisfies BetterAuthClientPlugin
 
-export { ROOM_ERROR_CODES } from '@/plugin/error-codes'
+export { ROOM_ERROR_CODES } from '@/plugin/errors/codes'

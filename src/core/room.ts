@@ -1,6 +1,11 @@
 import type { Absent, Perpetual, Unbounded, Unlinked } from '@/types/absence'
 
-export type RoomStatus = 'active' | 'locked' | 'closed'
+export const ROOM_STATUSES = ['active', 'locked', 'closed'] as const
+
+export type RoomStatus = (typeof ROOM_STATUSES)[number]
+
+export const isRoomStatus = (value: string): value is RoomStatus =>
+  ROOM_STATUSES.some(status => status === value)
 
 export type Room = {
   id: string

@@ -1,8 +1,14 @@
 import { relinquish } from '@/core/operations/capacity/release'
+import {
+  eraseActor,
+  FORGET_ATTEMPTS,
+  forgetActor
+} from '@/core/operations/identity/erasure'
 
 import type { Actor } from '@/core/actor'
 import type { Membership } from '@/core/membership'
-import type { ReleaseStore } from '@/core/operations/capacity/release'
+import type { ActorLink } from '@/core/operations/admission/seating'
+import type { ErasureStore } from '@/core/operations/identity/erasure'
 import type { Usable } from '@/types/absence'
 
 export type PromotionRefusal =
@@ -10,11 +16,11 @@ export type PromotionRefusal =
   | 'stale-grant'
   | 'unknown-actor'
 
-export type PromotionStore = ReleaseStore & {
+export type PromotionStore = ErasureStore & {
   readonly byId: (id: string) => Promise<Usable<Actor>>
   readonly owner: (userId: string) => Promise<Actor>
   readonly invalidate: (actorId: string, epoch: number) => Promise<boolean>
-  readonly heldBy: (actorId: string) => Promise<Membership[]>
+  readonly survives: (actor: ActorLink) => Promise<boolean>
   readonly membership: (
     roomId: string,
     actorId: string
@@ -24,8 +30,6 @@ export type PromotionStore = ReleaseStore & {
     roomId: string,
     actorId: string
   ) => Promise<boolean>
-  readonly discard: (membershipId: string) => Promise<void>
-  readonly forget: (actorId: string) => Promise<void>
 }
 
 export type PromotionAuthority =
@@ -77,46 +81,72 @@ const carry = async (
   return false
 }
 
-const MAX_PASSES = 50
+const SWEEP = { passes: 50, page: 200 } as const
 
-type Sweeping = {
-  readonly actorId: string
-  readonly carried: number
-  readonly discarded: number
-  readonly passes: number
+type Sweep = {
+  readonly anonymousId: string
+  readonly owner: Actor
+  readonly now: Date
+  readonly store: PromotionStore
 }
 
-const sweep = async (
-  owner: Actor,
-  now: Date,
-  store: PromotionStore,
-  state: Sweeping
-): Promise<{ carried: number; discarded: number; emptied: boolean }> => {
-  const held = await store.heldBy(state.actorId)
+type Tally = {
+  readonly carried: number
+  readonly discarded: number
+}
 
-  if (held.length === 0) {
-    return { carried: state.carried, discarded: state.discarded, emptied: true }
-  }
-
-  if (state.passes === 0) {
-    return {
-      carried: state.carried,
-      discarded: state.discarded,
-      emptied: false
-    }
-  }
-
+const carryPage = async (held: Membership[], sweep: Sweep): Promise<Tally> => {
   const settled = await Promise.all(
-    held.map(membership => carry(membership, owner, now, store))
+    held.map(membership =>
+      carry(membership, sweep.owner, sweep.now, sweep.store)
+    )
   )
   const carried = settled.filter(Boolean).length
 
-  return sweep(owner, now, store, {
-    actorId: state.actorId,
-    carried: state.carried + carried,
-    discarded: state.discarded + (settled.length - carried),
-    passes: state.passes - 1
-  })
+  return { carried, discarded: settled.length - carried }
+}
+
+type Moved = Tally & { readonly emptied: boolean }
+
+const sweeping = async (
+  sweep: Sweep,
+  tally: Tally,
+  passes: number
+): Promise<Moved> => {
+  const held = await sweep.store.heldBy(sweep.anonymousId, SWEEP.page)
+
+  if (held.length === 0) return { ...tally, emptied: true }
+  if (passes === 0) return { ...tally, emptied: false }
+
+  const page = await carryPage(held, sweep)
+
+  return sweeping(
+    sweep,
+    {
+      carried: tally.carried + page.carried,
+      discarded: tally.discarded + page.discarded
+    },
+    passes - 1
+  )
+}
+
+const retiring = async (
+  sweep: Sweep,
+  tally: Tally,
+  attempts: number
+): Promise<Moved> => {
+  const moved = await sweeping(sweep, tally, SWEEP.passes)
+
+  if (!moved.emptied) return moved
+
+  const orphaned = await forgetActor(sweep.anonymousId, sweep.now, sweep.store)
+
+  if (orphaned !== null) {
+    return { ...moved, discarded: moved.discarded + orphaned }
+  }
+  if (attempts === 0) return { ...moved, emptied: false }
+
+  return retiring(sweep, moved, attempts - 1)
 }
 
 export const promote = async (
@@ -139,18 +169,23 @@ export const promote = async (
 
   if (owner.id === anonymous.id) return refuse('already-linked')
 
-  if (!(await store.invalidate(anonymous.id, anonymous.grantEpoch))) {
-    return refuse('stale-grant')
+  const invalidated = await store.invalidate(anonymous.id, anonymous.grantEpoch)
+
+  if (!invalidated) return refuse('stale-grant')
+
+  const moved = await retiring(
+    { anonymousId: anonymous.id, owner, now: request.now, store },
+    { carried: 0, discarded: 0 },
+    FORGET_ATTEMPTS
+  )
+
+  const survives = await store.survives(owner)
+
+  if (!survives) {
+    await eraseActor({ actorId: owner.id, now: request.now }, store)
+
+    return refuse('unknown-actor')
   }
-
-  const moved = await sweep(owner, request.now, store, {
-    actorId: anonymous.id,
-    carried: 0,
-    discarded: 0,
-    passes: MAX_PASSES
-  })
-
-  if (moved.emptied) await store.forget(anonymous.id)
 
   return {
     promoted: true,

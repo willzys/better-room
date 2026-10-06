@@ -2,16 +2,19 @@ import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { promote } from '@/core/operations/identity/promotion'
-import { carriersFrom, GRANT_COOKIE } from '@/plugin/carrier'
 import {
   noGrantToPromoteError,
   promotionError,
   promotionNeedsASessionError,
   resumeIsServerOnlyError,
   resumeNeedsBothNamesError
-} from '@/plugin/errors'
-import { promotionReport } from '@/plugin/report'
+} from '@/plugin/errors/refusals'
+import { carriersFrom, GRANT_COOKIE, isServerCall } from '@/plugin/http/carrier'
+import { promotionReport } from '@/plugin/http/report'
 import { promotionStore } from '@/plugin/stores/identity/promotion'
+
+import type { Promoted } from '@/core/operations/identity/promotion'
+import type { Signal } from '@/plugin/hooks/events'
 
 const promoteBody = z
   .object({
@@ -24,7 +27,22 @@ const promoteBody = z
   })
   .optional()
 
-export const promoteEndpoint = () =>
+const announced = async (
+  promoted: Promoted,
+  signal: Signal,
+  logger: Parameters<Signal>[1]
+) => {
+  const report = promotionReport(promoted)
+
+  await signal(
+    { type: 'promoted', actorId: report.actorId, merged: report.merged },
+    logger
+  )
+
+  return report
+}
+
+export const promoteEndpoint = (signal: Signal) =>
   createAuthEndpoint(
     '/better-room/promote',
     { method: 'POST', body: promoteBody },
@@ -34,7 +52,7 @@ export const promoteEndpoint = () =>
       const named = ctx.body?.actorId
 
       if (named !== undefined) {
-        if (ctx.request !== undefined) throw resumeIsServerOnlyError()
+        if (!isServerCall(ctx)) throw resumeIsServerOnlyError()
 
         const userId = ctx.body?.userId
 
@@ -47,7 +65,7 @@ export const promoteEndpoint = () =>
 
         if (!resumed.promoted) throw promotionError(resumed.refusal)
 
-        return ctx.json(promotionReport(resumed))
+        return ctx.json(await announced(resumed, signal, ctx.context.logger))
       }
 
       const carriers = await carriersFrom(ctx, now)
@@ -74,6 +92,6 @@ export const promoteEndpoint = () =>
         maxAge: 0
       })
 
-      return ctx.json(promotionReport(outcome))
+      return ctx.json(await announced(outcome, signal, ctx.context.logger))
     }
   )

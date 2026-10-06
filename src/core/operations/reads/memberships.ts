@@ -7,6 +7,8 @@ import type { Exhausted, Unstarted, Usable } from '@/types/absence'
 
 export const EXPIRY_BRANCHES = ['perpetual', 'dated'] as const
 
+const LISTING = { ceiling: 200 } as const
+
 export type ExpiryBranch = (typeof EXPIRY_BRANCHES)[number]
 
 export type Resumption = {
@@ -24,7 +26,8 @@ export type MembershipsStore = {
   readonly held: (
     actorId: string,
     now: Date,
-    before: Unstarted<Resumption>
+    before: Unstarted<Resumption>,
+    ceiling: number
   ) => Promise<HeldMemberships>
   readonly rooms: (ids: string[]) => Promise<Room[]>
 }
@@ -55,7 +58,8 @@ export const readMemberships = async (
   const standing = await store.held(
     request.actor.id,
     request.now,
-    request.before
+    request.before,
+    LISTING.ceiling
   )
 
   if (standing.memberships.length === 0) {

@@ -5,15 +5,17 @@ import { resolveActor } from '@/core/actor'
 import { addMember } from '@/core/operations/admission/addition'
 import {
   additionError,
-  additionServerOnlyError,
-  oneIdentityError,
+  additionIsServerOnlyError,
+  exactlyOneIdentityError,
   unknownActorError
-} from '@/plugin/errors'
-import { membershipReport } from '@/plugin/report'
+} from '@/plugin/errors/refusals'
+import { isServerCall } from '@/plugin/http/carrier'
+import { membershipReport } from '@/plugin/http/report'
 import { additionStore } from '@/plugin/stores/admission/addition'
 import { actorStore } from '@/plugin/stores/identity/actor'
 
 import type { Actor, ActorStore } from '@/core/actor'
+import type { Signal } from '@/plugin/hooks/events'
 import type { Usable } from '@/types/absence'
 
 const addBody = z.object({
@@ -62,16 +64,16 @@ const actorFor = (
     ? resolveActor({ userId: identity.userId, claim: null }, store)
     : store.byId(identity.actorId)
 
-export const addEndpoint = () =>
+export const addEndpoint = (signal: Signal) =>
   createAuthEndpoint(
     '/better-room/add-member',
     { method: 'POST', body: addBody },
     async ctx => {
-      if (ctx.request !== undefined) throw additionServerOnlyError()
+      if (!isServerCall(ctx)) throw additionIsServerOnlyError()
 
       const identity = identityOf(ctx.body)
 
-      if (identity === null) throw oneIdentityError()
+      if (identity === null) throw exactlyOneIdentityError()
 
       const { adapter } = ctx.context
       const actor = await actorFor(identity, actorStore(adapter))
@@ -81,7 +83,7 @@ export const addEndpoint = () =>
       const outcome = await addMember(
         {
           roomId: ctx.body.roomId,
-          actorId: actor.id,
+          actor,
           role: ctx.body.role,
           expiresAt: ctx.body.expiresAt ?? null,
           now: new Date()
@@ -91,6 +93,13 @@ export const addEndpoint = () =>
 
       if (!outcome.added) throw additionError(outcome.refusal)
 
-      return ctx.json({ membership: membershipReport(outcome.membership) })
+      const membership = membershipReport(outcome.membership)
+
+      await signal(
+        { type: 'added', roomId: membership.roomId, membership },
+        ctx.context.logger
+      )
+
+      return ctx.json({ membership })
     }
   )

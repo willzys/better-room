@@ -1,67 +1,81 @@
-import { codeIssuer } from '@/plugin/stores/codes/code'
-import { byId, found, MODELS, toRoom } from '@/plugin/stores/rows'
+import { codeStore } from '@/plugin/stores/codes/code'
+import { roomLookup } from '@/plugin/stores/lookups'
+import { codeTable } from '@/plugin/stores/table'
+import { beyond } from '@/plugin/stores/where'
 
 import type { DBAdapter } from 'better-auth/types'
 
 import type { RotationStore } from '@/core/operations/codes/rotation'
-import type { CodeRow, RoomRow } from '@/plugin/stores/rows'
+import type { CodeRow } from '@/plugin/stores/rows'
 
-const ACTIVE_CODE_PAGE = 100
-const ACTIVE_CODE_CEILING = 1000
+const ACTIVE_CODES = { page: 100 } as const
 
-const collectActive = async (
-  adapter: DBAdapter,
-  roomId: string,
-  collected: string[]
-): Promise<string[]> => {
-  const last = collected.at(-1)
-  const page = await adapter.findMany<CodeRow>({
-    model: MODELS.code,
-    where: [
-      { field: 'roomId', value: roomId },
-      { field: 'status', value: 'active' },
-      ...(last === undefined
-        ? []
-        : [{ field: 'identifier', operator: 'gt' as const, value: last }])
-    ],
-    sortBy: { field: 'identifier', direction: 'asc' },
-    limit: ACTIVE_CODE_PAGE
-  })
-  const identifiers = [...collected, ...page.map(row => row.identifier)]
+const batches = (identifiers: string[]) =>
+  Array.from(
+    { length: Math.ceil(identifiers.length / ACTIVE_CODES.page) },
+    (_, index) =>
+      identifiers.slice(
+        index * ACTIVE_CODES.page,
+        (index + 1) * ACTIVE_CODES.page
+      )
+  )
 
-  return page.length < ACTIVE_CODE_PAGE ||
-    identifiers.length >= ACTIVE_CODE_CEILING
-    ? identifiers
-    : collectActive(adapter, roomId, identifiers)
-}
+export const rotationStore = (adapter: DBAdapter): RotationStore => {
+  const codes = codeTable(adapter)
 
-export const rotationStore = (adapter: DBAdapter): RotationStore => ({
-  ...codeIssuer(adapter),
-  room: async id =>
-    found(
-      await adapter.findOne<RoomRow>({ model: MODELS.room, where: byId(id) }),
-      toRoom
-    ),
-  retireGrace: async (roomId, at) => {
-    await adapter.updateMany({
-      model: MODELS.code,
+  const collectActive = async (
+    roomId: string,
+    collected: string[]
+  ): Promise<string[]> => {
+    const page = await codes.findMany({
+      where: [
+        { field: 'roomId', value: roomId },
+        { field: 'status', value: 'active' },
+        ...beyond<CodeRow>('identifier', collected.at(-1) ?? null)
+      ],
+      sortBy: { field: 'identifier', direction: 'asc' },
+      limit: ACTIVE_CODES.page
+    })
+    const identifiers = [...collected, ...page.map(row => row.identifier)]
+    return page.length < ACTIVE_CODES.page
+      ? identifiers
+      : collectActive(roomId, identifiers)
+  }
+
+  const retireGrace = async (roomId: string, at: Date) => {
+    await codes.updateMany({
       where: [
         { field: 'roomId', value: roomId },
         { field: 'status', value: 'grace' }
       ],
-      update: { status: 'revoked', revokedAt: at }
-    })
-  },
-  activeCodes: roomId => collectActive(adapter, roomId, []),
-  demoteOthers: async (roomId, codeIds, until) => {
-    await adapter.updateMany({
-      model: MODELS.code,
-      where: [
-        { field: 'roomId', value: roomId },
-        { field: 'status', value: 'active' },
-        { field: 'identifier', operator: 'in', value: codeIds }
-      ],
-      update: { status: 'grace', expiresAt: until }
+      set: { status: 'revoked', revokedAt: at }
     })
   }
-})
+
+  const demoteOthers = async (
+    roomId: string,
+    identifiers: string[],
+    until: Date
+  ) => {
+    await Promise.all(
+      batches(identifiers).map(batch =>
+        codes.updateMany({
+          where: [
+            { field: 'roomId', value: roomId },
+            { field: 'status', value: 'active' },
+            { field: 'identifier', operator: 'in', value: batch }
+          ],
+          set: { status: 'grace', expiresAt: until }
+        })
+      )
+    )
+  }
+
+  return {
+    ...codeStore(adapter),
+    room: roomLookup(adapter),
+    retireGrace,
+    activeCodes: roomId => collectActive(roomId, []),
+    demoteOthers
+  }
+}

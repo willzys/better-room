@@ -18,9 +18,10 @@ export type {
   PromotionReport,
   ReconciliationReport,
   RoomReport
-} from '@/plugin/report'
-export type { RoomSchemaOption } from '@/plugin/schema'
+} from '@/plugin/http/report'
+export type { RoomEvent, RoomEventListener } from '@/plugin/hooks/events'
+export type { RoomSchemaOption } from '@/plugin/schema/tables'
 export type { CodeFormatName } from '@/security/code-format'
 export { betterRoom } from '@/plugin'
 export type { RoomOptions } from '@/plugin/options'
-export { ROOM_ERROR_CODES } from '@/plugin/error-codes'
+export { ROOM_ERROR_CODES } from '@/plugin/errors/codes'

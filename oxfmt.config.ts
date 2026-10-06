@@ -27,5 +27,11 @@ export default defineConfig({
       'style',
       'unknown'
     ]
-  }
+  },
+  overrides: [
+    {
+      files: ['src/plugin/errors/codes.ts'],
+      options: { printWidth: 100 }
+    }
+  ]
 })

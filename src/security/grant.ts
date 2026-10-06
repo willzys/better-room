@@ -1,9 +1,11 @@
 import type { Usable } from '@/types/absence'
 
-const VERSION = 'v1'
-const SEPARATOR = '.'
-const HEADER_PARTS = 3
-const DIGITS = /^\d+$/
+const FORMAT = {
+  version: 'v1',
+  separator: '.',
+  headerParts: 3,
+  digits: /^\d+$/
+} as const
 
 export type Grant = {
   readonly actorId: string
@@ -12,7 +14,7 @@ export type Grant = {
 }
 
 const integer = (part: string | undefined): Usable<number> => {
-  if (part === undefined || !DIGITS.test(part)) return null
+  if (part === undefined || !FORMAT.digits.test(part)) return null
 
   const value = Number(part)
 
@@ -20,16 +22,18 @@ const integer = (part: string | undefined): Usable<number> => {
 }
 
 export const encodeGrant = (grant: Grant) =>
-  [VERSION, grant.epoch, grant.expiresAt, grant.actorId].join(SEPARATOR)
+  [FORMAT.version, grant.epoch, grant.expiresAt, grant.actorId].join(
+    FORMAT.separator
+  )
 
 export const decodeGrant = (value: string): Usable<Grant> => {
-  const parts = value.split(SEPARATOR)
+  const parts = value.split(FORMAT.separator)
 
-  if (parts[0] !== VERSION) return null
+  if (parts[0] !== FORMAT.version) return null
 
   const epoch = integer(parts[1])
   const expiresAt = integer(parts[2])
-  const actorId = parts.slice(HEADER_PARTS).join(SEPARATOR)
+  const actorId = parts.slice(FORMAT.headerParts).join(FORMAT.separator)
 
   if (epoch === null || expiresAt === null || actorId === '') return null
 

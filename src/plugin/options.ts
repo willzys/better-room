@@ -1,28 +1,64 @@
-import { MAX_STORED_INTEGER } from '@/plugin/schema'
-import { codeFormat } from '@/security/code-format'
+import { isRoomEventListener, signalling } from '@/plugin/hooks/events'
+import { MAX_STORED_INTEGER } from '@/plugin/schema/tables'
+import {
+  CODE_FORMAT_NAMES,
+  codeFormat,
+  isCodeFormatName
+} from '@/security/code-format'
 
-import type { RoomSchemaOption } from '@/plugin/schema'
+import type { RoomEventListener } from '@/plugin/hooks/events'
+import type { RoomSchemaOption } from '@/plugin/schema/tables'
 import type { CodeFormatName } from '@/security/code-format'
 
-const DEFAULT_GRANT_LIFETIME = 60 * 60 * 24 * 7
-const DEFAULT_GRACE = 120
-const DEFAULT_ATTEMPT_WINDOW = 60
-const DEFAULT_ATTEMPTS_PER_IP = 10
-const DEFAULT_ATTEMPTS_FOR_EVERYONE = 600
-const MAX_GRANT_LIFETIME = 60 * 60 * 24 * 400
-const MAX_GRACE = 60 * 60 * 24
-const MAX_ATTEMPT_WINDOW = 60 * 60 * 24
+type Bound = {
+  readonly name: string
+  readonly unit: 'attempts' | 'seconds'
+  readonly fallback: number
+  readonly max: number
+}
 
-const grantLifetimeOf = (lifetime: number | undefined) => {
-  const resolved = lifetime ?? DEFAULT_GRANT_LIFETIME
+const DAY = 60 * 60 * 24
+
+const BOUNDS = {
+  grantLifetime: {
+    name: 'grant lifetime',
+    unit: 'seconds',
+    fallback: 7 * DAY,
+    max: 400 * DAY
+  },
+  grace: { name: 'grace window', unit: 'seconds', fallback: 120, max: DAY },
+  attemptWindow: {
+    name: 'attempt window',
+    unit: 'seconds',
+    fallback: 60,
+    max: DAY
+  },
+  attemptsPerIp: {
+    name: 'attempts per ip',
+    unit: 'attempts',
+    fallback: 10,
+    max: MAX_STORED_INTEGER
+  },
+  attemptsForEveryone: {
+    name: 'attempts for everyone',
+    unit: 'attempts',
+    fallback: 600,
+    max: MAX_STORED_INTEGER
+  }
+} as const satisfies Record<string, Bound>
+
+const boundedInteger = (value: number | undefined, bound: Bound) => {
+  const resolved = value ?? bound.fallback
 
   if (!Number.isInteger(resolved) || resolved < 1) {
-    throw new RangeError('grant lifetime must be a positive integer of seconds')
+    throw new RangeError(
+      `${bound.name} must be a positive integer of ${bound.unit}`
+    )
   }
 
-  if (resolved > MAX_GRANT_LIFETIME) {
+  if (resolved > bound.max) {
     throw new RangeError(
-      `grant lifetime must not exceed ${MAX_GRANT_LIFETIME} seconds`
+      `${bound.name} must not exceed ${bound.max} ${bound.unit}`
     )
   }
 
@@ -47,76 +83,34 @@ export type RoomOptions = {
     readonly everyone?: number
   }
   readonly schema?: RoomSchemaOption
-}
-
-const ceilingOf = (name: string, max: number | undefined, fallback: number) => {
-  const resolved = max ?? fallback
-
-  if (!Number.isInteger(resolved) || resolved < 1) {
-    throw new RangeError(`${name} must be a positive integer of attempts`)
-  }
-
-  if (resolved > MAX_STORED_INTEGER) {
-    throw new RangeError(`${name} must not exceed ${MAX_STORED_INTEGER}`)
-  }
-
-  return resolved
-}
-
-const attemptWindowOf = (window: number | undefined) => {
-  const resolved = window ?? DEFAULT_ATTEMPT_WINDOW
-
-  if (!Number.isInteger(resolved) || resolved < 1) {
-    throw new RangeError('attempt window must be a positive integer of seconds')
-  }
-
-  if (resolved > MAX_ATTEMPT_WINDOW) {
-    throw new RangeError(
-      `attempt window must not exceed ${MAX_ATTEMPT_WINDOW} seconds`
-    )
-  }
-
-  return resolved
+  readonly onChange?: RoomEventListener
 }
 
 const limitsOf = (attempts: RoomOptions['attempts']) => {
-  const window = attemptWindowOf(attempts?.window)
+  const window = boundedInteger(attempts?.window, BOUNDS.attemptWindow)
 
   return {
     perIp: {
       window,
-      max: ceilingOf(
-        'attempts per ip',
-        attempts?.perIp,
-        DEFAULT_ATTEMPTS_PER_IP
-      )
+      max: boundedInteger(attempts?.perIp, BOUNDS.attemptsPerIp)
     },
     everyone: {
       window,
-      max: ceilingOf(
-        'attempts for everyone',
-        attempts?.everyone,
-        DEFAULT_ATTEMPTS_FOR_EVERYONE
-      )
+      max: boundedInteger(attempts?.everyone, BOUNDS.attemptsForEveryone)
     }
   }
 }
 
-const formatOf = (code: RoomOptions['code']) =>
-  codeFormat(code?.format ?? 'crockford', code?.length)
+const formatOf = (code: RoomOptions['code']) => {
+  const name: unknown = code?.format ?? 'crockford'
 
-const graceOf = (grace: number | undefined) => {
-  const resolved = grace ?? DEFAULT_GRACE
-
-  if (!Number.isInteger(resolved) || resolved < 1) {
-    throw new RangeError('grace window must be a positive integer of seconds')
+  if (!isCodeFormatName(name)) {
+    throw new TypeError(
+      `code format must be one of ${CODE_FORMAT_NAMES.join(', ')}`
+    )
   }
 
-  if (resolved > MAX_GRACE) {
-    throw new RangeError(`grace window must not exceed ${MAX_GRACE} seconds`)
-  }
-
-  return resolved
+  return codeFormat(name, code?.length)
 }
 
 const overHttpOf = (overHttp: unknown) => {
@@ -128,10 +122,20 @@ const overHttpOf = (overHttp: unknown) => {
   return overHttp
 }
 
+const signalOf = (onChange: unknown) => {
+  if (onChange === undefined) return signalling()
+  if (!isRoomEventListener(onChange)) {
+    throw new TypeError('onChange must be a function')
+  }
+
+  return signalling(onChange)
+}
+
 export const settingsOf = (options?: RoomOptions) => ({
   format: formatOf(options?.code),
-  grace: graceOf(options?.code?.grace),
-  grantLifetime: grantLifetimeOf(options?.grant?.lifetime),
+  grace: boundedInteger(options?.code?.grace, BOUNDS.grace),
+  grantLifetime: boundedInteger(options?.grant?.lifetime, BOUNDS.grantLifetime),
   overHttp: overHttpOf(options?.creation?.overHttp),
+  signal: signalOf(options?.onChange),
   ...limitsOf(options?.attempts)
 })

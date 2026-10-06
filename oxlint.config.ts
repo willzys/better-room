@@ -44,6 +44,105 @@ export default defineConfig({
       rules: {
         'import/no-nodejs-modules': 'error'
       }
+    },
+    {
+      files: ['src/core/**/*.ts'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: [
+                  'better-auth',
+                  'better-auth/**',
+                  '@better-auth/**',
+                  'better-call',
+                  'zod'
+                ],
+                message:
+                  'The domain stays independent of the framework; reach Better Auth from plugin/.'
+              },
+              {
+                group: [
+                  '@/plugin',
+                  '@/plugin/**',
+                  '@/security',
+                  '@/security/**'
+                ],
+                message: 'The domain depends on nothing but itself and types/.'
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      files: ['src/security/**/*.ts'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: [
+                  'better-auth',
+                  'better-auth/**',
+                  '@better-auth/**',
+                  'better-call',
+                  'zod'
+                ],
+                message:
+                  'Codes, grants and keys are computed without the framework.'
+              },
+              {
+                group: ['@/core', '@/core/**', '@/plugin', '@/plugin/**'],
+                message:
+                  'security/ computes over codes, grants and keys and knows no room.'
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      files: ['src/types/**/*.ts'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: [
+                  '@/**',
+                  'better-auth',
+                  'better-auth/**',
+                  '@better-auth/**'
+                ],
+                message:
+                  'types/ holds shared type definitions that depend on nothing.'
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      files: ['src/plugin/stores/**/*.ts'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: ['@/plugin/endpoints/**'],
+                message:
+                  'A store reads and writes through the adapter and knows nothing of HTTP.'
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 })
