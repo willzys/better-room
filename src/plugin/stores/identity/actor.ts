@@ -1,47 +1,27 @@
-import { byId, MODELS, found, toActor } from '@/plugin/stores/rows'
+import { writeOrConfirm } from '@/plugin/stores/collision'
+import { found, toActor } from '@/plugin/stores/rows'
+import { actorTable } from '@/plugin/stores/table'
+import { byId } from '@/plugin/stores/where'
 
 import type { DBAdapter } from 'better-auth/types'
 
 import type { ActorStore } from '@/core/actor'
-import type { ActorRow, Input } from '@/plugin/stores/rows'
 import type { Unlinked } from '@/types/absence'
 
-export const actorStore = (adapter: DBAdapter): ActorStore => ({
-  byId: async id =>
-    found(
-      await adapter.findOne<ActorRow>({
-        model: MODELS.actor,
-        where: byId(id)
-      }),
-      toActor
-    ),
-  byUser: async userId =>
-    found(
-      await adapter.findOne<ActorRow>({
-        model: MODELS.actor,
-        where: [{ field: 'userId', value: userId }]
-      }),
-      toActor
-    ),
-  create: async (userId: Unlinked<string>) => {
-    try {
-      return toActor(
-        await adapter.create<Input, ActorRow>({
-          model: MODELS.actor,
-          data: { userId }
-        })
-      )
-    } catch (error) {
-      if (userId === null) throw error
+export const actorStore = (adapter: DBAdapter): ActorStore => {
+  const actors = actorTable(adapter)
 
-      const linked = await adapter.findOne<ActorRow>({
-        model: MODELS.actor,
-        where: [{ field: 'userId', value: userId }]
-      })
+  const byActorId = async (id: string) =>
+    found(await actors.findOne(byId(id)), toActor)
 
-      if (linked === null) throw error
+  const byUser = async (userId: string) =>
+    found(await actors.findOne([{ field: 'userId', value: userId }]), toActor)
 
-      return toActor(linked)
-    }
-  }
-})
+  const create = (userId: Unlinked<string>) =>
+    writeOrConfirm(
+      async () => toActor(await actors.create({ userId })),
+      async () => (userId === null ? null : byUser(userId))
+    )
+
+  return { byId: byActorId, byUser, create }
+}

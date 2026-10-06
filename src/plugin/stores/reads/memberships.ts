@@ -1,12 +1,9 @@
 import { EXPIRY_BRANCHES } from '@/core/operations/reads/memberships'
-import {
-  HELD_CEILING,
-  MODELS,
-  toMembership,
-  toRoom
-} from '@/plugin/stores/rows'
+import { toMembership, toRoom } from '@/plugin/stores/rows'
+import { memberTable, roomTable } from '@/plugin/stores/table'
+import { beyond } from '@/plugin/stores/where'
 
-import type { DBAdapter, Where } from 'better-auth/types'
+import type { DBAdapter } from 'better-auth/types'
 
 import type { Membership } from '@/core/membership'
 import type {
@@ -15,47 +12,53 @@ import type {
   MembershipsStore,
   Resumption
 } from '@/core/operations/reads/memberships'
-import type { MemberRow, RoomRow } from '@/plugin/stores/rows'
+import type { MemberRow } from '@/plugin/stores/rows'
 import type { Unstarted } from '@/types/absence'
 
-const read = async (
-  adapter: DBAdapter,
-  request: {
-    readonly actorId: string
-    readonly now: Date
-    readonly branch: ExpiryBranch
-    readonly after: Unstarted<string>
-    readonly limit: number
-  }
-): Promise<Membership[]> =>
-  (
-    await adapter.findMany<MemberRow>({
-      model: MODELS.member,
-      where: [
-        { field: 'actorId', value: request.actorId },
-        { field: 'leftAt', value: null },
-        { field: 'revokedAt', value: null },
-        request.branch === 'perpetual'
-          ? { field: 'expiresAt', value: null }
-          : { field: 'expiresAt', operator: 'gt', value: request.now },
-        ...(request.after === null
-          ? []
-          : [{ field: 'id', operator: 'gt' as const, value: request.after }])
-      ] satisfies Where[],
-      sortBy: { field: 'id', direction: 'asc' },
-      limit: request.limit
-    })
-  ).map(toMembership)
+type Members = ReturnType<typeof memberTable>
+
+type Listing = {
+  readonly actorId: string
+  readonly now: Date
+  readonly ceiling: number
+}
+
+type Page = {
+  readonly actorId: string
+  readonly now: Date
+  readonly branch: ExpiryBranch
+  readonly after: Unstarted<string>
+  readonly limit: number
+}
+
+const read = async (members: Members, page: Page): Promise<Membership[]> => {
+  const rows = await members.findMany({
+    where: [
+      { field: 'actorId', value: page.actorId },
+      { field: 'leftAt', value: null },
+      { field: 'revokedAt', value: null },
+      page.branch === 'perpetual'
+        ? { field: 'expiresAt', value: null }
+        : { field: 'expiresAt', operator: 'gt', value: page.now },
+      ...beyond<MemberRow>('id', page.after)
+    ],
+    sortBy: { field: 'id', direction: 'asc' },
+    limit: page.limit
+  })
+
+  return rows.map(toMembership)
+}
 
 const walk = async (
-  adapter: DBAdapter,
-  request: { readonly actorId: string; readonly now: Date },
+  members: Members,
+  listing: Listing,
   from: Resumption,
   gathered: Membership[]
 ): Promise<HeldMemberships> => {
-  const remaining = HELD_CEILING - gathered.length
-  const rows = await read(adapter, {
-    ...request,
+  const remaining = listing.ceiling - gathered.length
+  const rows = await read(members, {
+    actorId: listing.actorId,
+    now: listing.now,
     ...from,
     limit: remaining + 1
   })
@@ -76,23 +79,34 @@ const walk = async (
     return { memberships, complete: true, next: null }
   }
 
-  return walk(adapter, request, { branch: following, after: null }, memberships)
+  return walk(members, listing, { branch: following, after: null }, memberships)
 }
 
-export const membershipsStore = (adapter: DBAdapter): MembershipsStore => ({
-  held: (actorId, now, before) =>
+export const membershipsStore = (adapter: DBAdapter): MembershipsStore => {
+  const members = memberTable(adapter)
+  const roomRows = roomTable(adapter)
+
+  const held = (
+    actorId: string,
+    now: Date,
+    before: Unstarted<Resumption>,
+    ceiling: number
+  ) =>
     walk(
-      adapter,
-      { actorId, now },
+      members,
+      { actorId, now, ceiling },
       before ?? { branch: 'perpetual', after: null },
       []
-    ),
-  rooms: async ids =>
-    (
-      await adapter.findMany<RoomRow>({
-        model: MODELS.room,
-        where: [{ field: 'id', operator: 'in', value: ids }],
-        limit: ids.length
-      })
-    ).map(toRoom)
-})
+    )
+
+  const rooms = async (ids: string[]) => {
+    const rows = await roomRows.findMany({
+      where: [{ field: 'id', operator: 'in', value: ids }],
+      limit: ids.length
+    })
+
+    return rows.map(toRoom)
+  }
+
+  return { held, rooms }
+}
