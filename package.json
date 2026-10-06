@@ -45,7 +45,8 @@
     "test": "bun test",
     "test:unit": "bun test tests/unit",
     "test:integration": "bun test tests/integration",
-    "test:generate": "bun tests/integration/prisma/generate.ts"
+    "test:generate": "bun tests/integration/prisma/generate.ts",
+    "test:load": "ROOM_TRAFFIC=${ROOM_TRAFFIC:-2000} bun test tests/integration -t 'traffic across rooms'"
   },
   "devDependencies": {
     "@better-auth/core": "^1.7.7",
@@ -57,6 +58,7 @@
     "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
     "better-auth": "^1.7.7",
+    "better-call": "1.4.0",
     "bun": "1.4.2",
     "drizzle-orm": "^0.45.3",
     "embedded-postgres": "18.4.0-beta.17",
@@ -74,6 +76,30 @@
     "zod": "^4.6.5"
   },
   "dependenciesMeta": {
+    "@embedded-postgres/darwin-arm64": {
+      "built": true
+    },
+    "@embedded-postgres/darwin-x64": {
+      "built": true
+    },
+    "@embedded-postgres/linux-arm": {
+      "built": true
+    },
+    "@embedded-postgres/linux-arm64": {
+      "built": true
+    },
+    "@embedded-postgres/linux-ia32": {
+      "built": true
+    },
+    "@embedded-postgres/linux-ppc64": {
+      "built": true
+    },
+    "@embedded-postgres/linux-x64": {
+      "built": true
+    },
+    "@embedded-postgres/windows-x64": {
+      "built": true
+    },
     "bun": {
       "built": true
     }
@@ -81,6 +107,7 @@
   "peerDependencies": {
     "@better-auth/core": "^1.7.7",
     "better-auth": "^1.7.7",
+    "better-call": "^1.4.0",
     "zod": "^4.5.4"
   },
   "simple-git-hooks": {
