@@ -29,9 +29,9 @@ jobs:
 
       - run: yarn install --immutable
 
-      - run: yarn oxlint .
+      - run: yarn lint
 
-      - run: yarn oxfmt --check .
+      - run: yarn format:check
 
       - run: yarn typecheck
 
