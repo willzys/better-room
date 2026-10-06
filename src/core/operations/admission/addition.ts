@@ -13,6 +13,7 @@ const ADDABLE = ['active', 'locked'] as const
 
 export type AdditionRefusal =
   | 'already-a-member'
+  | 'revoked'
   | 'at-capacity'
   | 'closed'
   | 'contended'
@@ -46,6 +47,9 @@ const refuse = (refusal: AdditionRefusal): AdditionOutcome => ({
   refusal
 })
 
+const heldAlready = (membership: Membership): AdditionOutcome =>
+  refuse(membership.revokedAt === null ? 'already-a-member' : 'revoked')
+
 const admits = (room: Room, now: Date): AdditionRefusal | Absent => {
   if (!hasEnded(room, now)) return null
 
@@ -61,7 +65,7 @@ const turnedAway = async (
     store.membership(request.roomId, request.actor.id)
   ])
 
-  if (membership !== null) return refuse('already-a-member')
+  if (membership !== null) return heldAlready(membership)
   if (room === null) return refuse('unknown-room')
 
   return refuse(admits(room, request.now) ?? 'at-capacity')
@@ -85,7 +89,7 @@ export const addMember = async (
 
   const existing = await store.membership(room.id, request.actor.id)
 
-  if (existing !== null) return refuse('already-a-member')
+  if (existing !== null) return heldAlready(existing)
 
   const admitted = await store.admit(room.id, room.maxMembers, ADDABLE)
 

@@ -5,7 +5,7 @@ import { resolveActor } from '@/core/actor'
 import { createRoom } from '@/core/operations/rooms/creation'
 import { minter } from '@/plugin/codes/mint'
 import {
-  codeSpaceExhaustedError,
+  creationError,
   creationIsServerOnlyError,
   creationNeedsASessionError
 } from '@/plugin/errors/refusals'
@@ -91,7 +91,7 @@ export const createEndpoint = (deps: CreateDeps) =>
         creationStore(adapter)
       )
 
-      if (created === null) throw codeSpaceExhaustedError()
+      if (!created.created) throw creationError(created.refusal)
 
       const room = roomReport(created.room)
 

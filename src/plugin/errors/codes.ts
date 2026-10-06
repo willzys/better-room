@@ -13,6 +13,7 @@ export const ROOM_ERROR_CODES = defineErrorCodes({
   CREATION_IS_SERVER_ONLY: 'Room creation is not exposed over http',
   CREATION_NEEDS_A_SESSION: 'Room creation over http requires an authenticated caller',
   CODE_SPACE_EXHAUSTED: 'No free room code was found',
+  ROOM_EXPIRES_IN_THE_PAST: 'The room would expire before it began',
   ROTATION_IS_SERVER_ONLY: 'Rotating a room code is not exposed over http',
   UNKNOWN_ROOM: 'No such room',
   ADDITION_IS_SERVER_ONLY: 'Adding a member is not exposed over http',
