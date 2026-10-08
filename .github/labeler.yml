@@ -13,5 +13,5 @@ security:
 adapters:
   - changed-files:
       - any-glob-to-any-file:
-          - src/plugin/schema.ts
-          - src/plugin/store.ts
+          - src/plugin/schema/**
+          - src/plugin/stores/**
