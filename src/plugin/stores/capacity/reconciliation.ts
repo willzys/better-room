@@ -21,7 +21,6 @@ export const reconciliationStore = (
 
     const pages = await Promise.all([
       holding([{ field: 'expiresAt', operator: 'lte', value: now }]),
-      holding([{ field: 'leftAt', operator: 'ne', value: null }]),
       holding([{ field: 'revokedAt', operator: 'ne', value: null }])
     ])
 
