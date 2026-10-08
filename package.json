@@ -42,6 +42,7 @@
     "format": "bun scripts/check.ts format",
     "format:check": "bun scripts/check.ts format --check",
     "prepare": "simple-git-hooks",
+    "prepublish": "yarn build",
     "test": "bun test",
     "test:unit": "bun test tests/unit",
     "test:integration": "bun test tests/integration",
