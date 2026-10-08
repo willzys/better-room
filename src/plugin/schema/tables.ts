@@ -64,7 +64,13 @@ const roomTable = () =>
       expiresAt: { type: 'date', required: false },
       createdBy: reference('roomActor', 'set null', false),
       createdAt: timestamp()
-    }
+    },
+    indexes: [
+      {
+        fields: ['createdBy'] as const,
+        name: 'room_created_by_idx'
+      }
+    ]
   }) satisfies RoomTable
 
 const codeTable = () =>
