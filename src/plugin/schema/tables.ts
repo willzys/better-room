@@ -104,7 +104,7 @@ const memberTable = () =>
   ({
     fields: {
       roomId: reference('room', 'cascade', true),
-      actorId: { ...reference('roomActor', 'restrict', true), index: true },
+      actorId: reference('roomActor', 'restrict', true),
       role: {
         type: 'string',
         required: true,
@@ -112,7 +112,7 @@ const memberTable = () =>
         sortable: true
       },
       joinedAt: timestamp(),
-      expiresAt: { type: 'date', required: false, index: true },
+      expiresAt: { type: 'date', required: false },
       leftAt: { type: 'date', required: false },
       revokedAt: { type: 'date', required: false },
       occupancy: counter(1),
@@ -123,6 +123,14 @@ const memberTable = () =>
         fields: ['roomId', 'actorId'] as const,
         unique: true,
         name: 'room_member_room_actor_uidx'
+      },
+      {
+        fields: ['actorId'] as const,
+        name: 'room_member_actor_idx'
+      },
+      {
+        fields: ['expiresAt'] as const,
+        name: 'room_member_expires_at_idx'
       }
     ]
   }) satisfies RoomTable
@@ -138,8 +146,7 @@ const attemptTable = () =>
       },
       lastAttemptAt: {
         type: 'date',
-        required: true,
-        index: true
+        required: true
       }
     },
     indexes: [
@@ -147,6 +154,10 @@ const attemptTable = () =>
         fields: ['key'] as const,
         unique: true,
         name: 'room_attempt_key_uidx'
+      },
+      {
+        fields: ['lastAttemptAt'] as const,
+        name: 'room_attempt_last_attempt_at_idx'
       }
     ]
   }) satisfies RoomTable
