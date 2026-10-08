@@ -2,11 +2,7 @@ import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { revokeMember } from '@/core/operations/capacity/revocation'
-import {
-  revocationError,
-  revocationIsServerOnlyError
-} from '@/plugin/errors/refusals'
-import { isServerCall } from '@/plugin/http/carrier'
+import { revocationError } from '@/plugin/errors/refusals'
 import { membershipReport } from '@/plugin/http/report'
 import { revocationStore } from '@/plugin/stores/capacity/revocation'
 
@@ -22,12 +18,9 @@ const revokeBody = z.object({
 })
 
 export const revokeEndpoint = (signal: Signal) =>
-  createAuthEndpoint(
-    '/better-room/revoke-member',
+  createAuthEndpoint.serverOnly(
     { method: 'POST', body: revokeBody },
     async ctx => {
-      if (!isServerCall(ctx)) throw revocationIsServerOnlyError()
-
       const outcome = await revokeMember(
         {
           roomId: ctx.body.roomId,

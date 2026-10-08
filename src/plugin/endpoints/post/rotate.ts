@@ -3,11 +3,7 @@ import * as z from 'zod'
 
 import { rotateCode } from '@/core/operations/codes/rotation'
 import { minter } from '@/plugin/codes/mint'
-import {
-  rotationError,
-  rotationIsServerOnlyError
-} from '@/plugin/errors/refusals'
-import { isServerCall } from '@/plugin/http/carrier'
+import { rotationError } from '@/plugin/errors/refusals'
 import { rotationStore } from '@/plugin/stores/codes/rotation'
 
 import type { Signal } from '@/plugin/hooks/events'
@@ -26,12 +22,9 @@ type RotateDeps = {
 }
 
 export const rotateEndpoint = (deps: RotateDeps) =>
-  createAuthEndpoint(
-    '/better-room/rotate-code',
+  createAuthEndpoint.serverOnly(
     { method: 'POST', body: rotateBody },
     async ctx => {
-      if (!isServerCall(ctx)) throw rotationIsServerOnlyError()
-
       const { adapter, secret } = ctx.context
 
       const outcome = await rotateCode(

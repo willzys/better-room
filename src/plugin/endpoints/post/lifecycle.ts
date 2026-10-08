@@ -2,11 +2,7 @@ import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { settleRoom } from '@/core/operations/rooms/lifecycle'
-import {
-  lifecycleError,
-  lifecycleIsServerOnlyError
-} from '@/plugin/errors/refusals'
-import { isServerCall } from '@/plugin/http/carrier'
+import { lifecycleError } from '@/plugin/errors/refusals'
 import { roomReport } from '@/plugin/http/report'
 import { lifecycleStore } from '@/plugin/stores/rooms/lifecycle'
 
@@ -24,12 +20,9 @@ const CHANGES = {
 } as const satisfies Record<Transition, RoomEvent['type']>
 
 export const lifecycleEndpoint = (transition: Transition, signal: Signal) =>
-  createAuthEndpoint(
-    `/better-room/${transition}`,
+  createAuthEndpoint.serverOnly(
     { method: 'POST', body: lifecycleBody },
     async ctx => {
-      if (!isServerCall(ctx)) throw lifecycleIsServerOnlyError()
-
       const outcome = await settleRoom(
         { roomId: ctx.body.roomId, transition },
         lifecycleStore(ctx.context.adapter)

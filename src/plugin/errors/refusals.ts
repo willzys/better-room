@@ -119,16 +119,6 @@ export const creationNeedsASessionError = failing(
   ROOM_ERROR_CODES.CREATION_NEEDS_A_SESSION
 )
 
-export const rotationIsServerOnlyError = failing(
-  'FORBIDDEN',
-  ROOM_ERROR_CODES.ROTATION_IS_SERVER_ONLY
-)
-
-export const additionIsServerOnlyError = failing(
-  'FORBIDDEN',
-  ROOM_ERROR_CODES.ADDITION_IS_SERVER_ONLY
-)
-
 export const exactlyOneIdentityError = failing(
   'BAD_REQUEST',
   ROOM_ERROR_CODES.EXACTLY_ONE_IDENTITY
@@ -142,21 +132,6 @@ export const unknownActorError = failing(
 export const unknownRoomError = failing(
   'NOT_FOUND',
   ROOM_ERROR_CODES.UNKNOWN_ROOM
-)
-
-export const revocationIsServerOnlyError = failing(
-  'FORBIDDEN',
-  ROOM_ERROR_CODES.REVOCATION_IS_SERVER_ONLY
-)
-
-export const lifecycleIsServerOnlyError = failing(
-  'FORBIDDEN',
-  ROOM_ERROR_CODES.LIFECYCLE_IS_SERVER_ONLY
-)
-
-export const reconciliationIsServerOnlyError = failing(
-  'FORBIDDEN',
-  ROOM_ERROR_CODES.RECONCILIATION_IS_SERVER_ONLY
 )
 
 export const promotionNeedsASessionError = failing(
