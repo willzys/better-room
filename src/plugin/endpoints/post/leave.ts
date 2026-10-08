@@ -5,6 +5,7 @@ import { findActor } from '@/core/actor'
 import { leave } from '@/core/operations/capacity/leave'
 import { leaveError } from '@/plugin/errors/refusals'
 import { carriersFrom } from '@/plugin/http/carrier'
+import { concealed } from '@/plugin/http/concealment'
 import { membershipReport } from '@/plugin/http/report'
 import { leaveStore } from '@/plugin/stores/capacity/leave'
 import { actorStore } from '@/plugin/stores/identity/actor'
@@ -32,7 +33,7 @@ export const leaveEndpoint = (signal: Signal) =>
         leaveStore(adapter)
       )
 
-      if (!outcome.left) throw leaveError(outcome.refusal)
+      if (!outcome.left) throw leaveError(concealed(outcome.refusal, ctx))
 
       const membership = membershipReport(outcome.membership)
 

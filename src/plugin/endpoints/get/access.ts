@@ -4,7 +4,7 @@ import * as z from 'zod'
 import { findActor } from '@/core/actor'
 import { readAccess } from '@/core/operations/reads/access'
 import { unknownRoomError } from '@/plugin/errors/refusals'
-import { carriersFrom } from '@/plugin/http/carrier'
+import { carriersFrom, isServerCall } from '@/plugin/http/carrier'
 import { membershipReport, roomReport } from '@/plugin/http/report'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { accessStore } from '@/plugin/stores/reads/access'
@@ -30,7 +30,15 @@ export const accessEndpoint = () =>
         accessStore(adapter)
       )
 
-      if (!access.found) throw unknownRoomError()
+      const fromServer = isServerCall(ctx)
+
+      if (!access.found && fromServer) throw unknownRoomError()
+
+      const visible = access.found && (fromServer || access.related)
+
+      if (!visible) {
+        return ctx.json({ authorized: false, room: null, membership: null })
+      }
 
       return ctx.json({
         authorized: access.authorized,

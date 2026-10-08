@@ -5,6 +5,7 @@ import { findActor } from '@/core/actor'
 import { readOccupancy } from '@/core/operations/reads/occupancy'
 import { occupancyError } from '@/plugin/errors/refusals'
 import { carriersFrom, isServerCall } from '@/plugin/http/carrier'
+import { concealed } from '@/plugin/http/concealment'
 import { occupancyReport } from '@/plugin/http/report'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { occupancyStore } from '@/plugin/stores/reads/occupancy'
@@ -35,7 +36,7 @@ export const occupancyEndpoint = () =>
         occupancyStore(adapter)
       )
 
-      if (!outcome.read) throw occupancyError(outcome.refusal)
+      if (!outcome.read) throw occupancyError(concealed(outcome.refusal, ctx))
 
       return ctx.json(occupancyReport(outcome))
     }
