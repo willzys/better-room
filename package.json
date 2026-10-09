@@ -14,7 +14,7 @@
   "bugs": {
     "url": "https://github.com/willzys/better-room/issues"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/willzys/better-room.git"
