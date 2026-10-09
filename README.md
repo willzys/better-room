@@ -3,7 +3,7 @@
   <img alt="Better Room" src="public/banner-light.gif" width="1280">
 </picture>
 
-# better-room
+# Better Room
 
 Room-scoped contextual authorization for [Better Auth](https://better-auth.com).
 
