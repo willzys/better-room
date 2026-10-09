@@ -2,8 +2,6 @@ import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
 import { reconcile } from '@/core/operations/capacity/reconciliation'
-import { reconciliationIsServerOnlyError } from '@/plugin/errors/refusals'
-import { isServerCall } from '@/plugin/http/carrier'
 import { membershipReport, reconciliationReport } from '@/plugin/http/report'
 import { reconciliationStore } from '@/plugin/stores/capacity/reconciliation'
 
@@ -22,12 +20,9 @@ const reconcileBody = z.object({
 })
 
 export const reconcileEndpoint = (signal: Signal) =>
-  createAuthEndpoint(
-    '/better-room/reconcile',
+  createAuthEndpoint.serverOnly(
     { method: 'POST', body: reconcileBody },
     async ctx => {
-      if (!isServerCall(ctx)) throw reconciliationIsServerOnlyError()
-
       const reconciled = await reconcile(
         { now: new Date(), batch: ctx.body.batch ?? BATCH.fallback },
         reconciliationStore(ctx.context.adapter)

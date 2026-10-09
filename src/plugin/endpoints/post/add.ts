@@ -5,11 +5,9 @@ import { resolveActor } from '@/core/actor'
 import { addMember } from '@/core/operations/admission/addition'
 import {
   additionError,
-  additionIsServerOnlyError,
   exactlyOneIdentityError,
   unknownActorError
 } from '@/plugin/errors/refusals'
-import { isServerCall } from '@/plugin/http/carrier'
 import { membershipReport } from '@/plugin/http/report'
 import { additionStore } from '@/plugin/stores/admission/addition'
 import { actorStore } from '@/plugin/stores/identity/actor'
@@ -65,12 +63,9 @@ const actorFor = (
     : store.byId(identity.actorId)
 
 export const addEndpoint = (signal: Signal) =>
-  createAuthEndpoint(
-    '/better-room/add-member',
+  createAuthEndpoint.serverOnly(
     { method: 'POST', body: addBody },
     async ctx => {
-      if (!isServerCall(ctx)) throw additionIsServerOnlyError()
-
       const identity = identityOf(ctx.body)
 
       if (identity === null) throw exactlyOneIdentityError()
