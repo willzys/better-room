@@ -29,6 +29,8 @@ jobs:
 
       - run: yarn install --immutable
 
+      - run: yarn test:generate
+
       - run: yarn lint
 
       - run: yarn format:check
@@ -36,6 +38,8 @@ jobs:
       - run: yarn typecheck
 
       - run: yarn build
+
+      - run: yarn test
 
   subject:
     name: Squash subject
