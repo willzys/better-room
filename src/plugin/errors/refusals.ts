@@ -119,6 +119,11 @@ export const creationNeedsASessionError = failing(
   ROOM_ERROR_CODES.CREATION_NEEDS_A_SESSION
 )
 
+export const joinNeedsASessionError = failing(
+  'UNAUTHORIZED',
+  ROOM_ERROR_CODES.JOIN_NEEDS_A_SESSION
+)
+
 export const exactlyOneIdentityError = failing(
   'BAD_REQUEST',
   ROOM_ERROR_CODES.EXACTLY_ONE_IDENTITY

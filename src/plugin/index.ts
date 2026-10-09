@@ -23,8 +23,16 @@ import type { RoomOptions } from '@/plugin/options'
 import type { CodeIdentifier } from '@/security/code-identifier'
 
 export const betterRoom = (options?: RoomOptions) => {
-  const { format, grace, grantLifetime, overHttp, perIp, everyone, signal } =
-    settingsOf(options)
+  const {
+    format,
+    grace,
+    grantLifetime,
+    overHttp,
+    requireSession,
+    perIp,
+    everyone,
+    signal
+  } = settingsOf(options)
 
   let identifier: CodeIdentifier | undefined
   let boundSecret: string | undefined
@@ -58,6 +66,7 @@ export const betterRoom = (options?: RoomOptions) => {
       joinRoom: joinEndpoint({
         identify,
         grantLifetime,
+        requireSession,
         perIp,
         everyone,
         signal

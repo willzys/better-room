@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
+import { signedIn } from '../../../../helpers/auth'
 import {
   codeOf,
   joinedMember,
@@ -49,4 +50,45 @@ describe('POST /better-room/join over HTTP', () => {
       expect(onlyRow(db.room).memberCount).toBe(0)
     }
   )
+})
+
+const requiring = async () => {
+  const db = empty()
+  await seedRoom(db, { plaintext: 'ABCD1234' })
+  const auth = memoryAuth(db, { join: { requireSession: true } })
+  const request = (body: unknown, cookie?: string) =>
+    postRoute(auth, 'join', body, cookie === undefined ? {} : { cookie })
+  const member = () => signedIn(auth, 'member@example.com')
+  return { db, request, member }
+}
+
+describe('POST /better-room/join requiring a session', () => {
+  test('refuses an anonymous caller before writing an actor or a seat', async () => {
+    const { db, request } = await requiring()
+    const response = await request({ code: 'ABCD1234' })
+
+    expect(response.status).toBe(401)
+    expect(await codeOf(response)).toBe('JOIN_NEEDS_A_SESSION')
+    expect(response.headers.getSetCookie()).toHaveLength(0)
+    expect(db.roomActor).toHaveLength(0)
+    expect(db.roomMember).toHaveLength(0)
+    expect(onlyRow(db.room).memberCount).toBe(0)
+  })
+
+  test('still answers an unknown code as unresolved, so it keeps counting', async () => {
+    const { request } = await requiring()
+    const response = await request({ code: 'ZZZZ9999' })
+
+    expect(response.status).toBe(400)
+    expect(await codeOf(response)).toBe('CODE_DID_NOT_RESOLVE')
+  })
+
+  test('admits an authenticated caller', async () => {
+    const { db, request, member } = await requiring()
+    const response = await request({ code: 'ABCD1234' }, await member())
+
+    expect(response.status).toBe(200)
+    expect(onlyRow(db.roomActor).userId).toBe(onlyRow(db.user).id)
+    expect(onlyRow(db.room).memberCount).toBe(1)
+  })
 })
