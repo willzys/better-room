@@ -12,6 +12,7 @@ export const ROOM_ERROR_CODES = defineErrorCodes({
   TOO_MANY_ATTEMPTS: 'Too many room codes have been tried',
   CREATION_IS_SERVER_ONLY: 'Room creation is not exposed over http',
   CREATION_NEEDS_A_SESSION: 'Room creation over http requires an authenticated caller',
+  JOIN_NEEDS_A_SESSION: 'Joining a room requires an authenticated caller',
   CODE_SPACE_EXHAUSTED: 'No free room code was found',
   ROOM_EXPIRES_IN_THE_PAST: 'The room would expire before it began',
   UNKNOWN_ROOM: 'No such room',

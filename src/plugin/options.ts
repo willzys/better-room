@@ -77,6 +77,9 @@ export type RoomOptions = {
   readonly creation?: {
     readonly overHttp?: boolean
   }
+  readonly join?: {
+    readonly requireSession?: boolean
+  }
   readonly attempts?: {
     readonly window?: number
     readonly perIp?: number
@@ -113,13 +116,13 @@ const formatOf = (code: RoomOptions['code']) => {
   return codeFormat(name, code?.length)
 }
 
-const overHttpOf = (overHttp: unknown) => {
-  if (overHttp === undefined) return false
-  if (typeof overHttp !== 'boolean') {
-    throw new TypeError('creation over http must be a boolean')
+const flagOf = (value: unknown, name: string) => {
+  if (value === undefined) return false
+  if (typeof value !== 'boolean') {
+    throw new TypeError(`${name} must be a boolean`)
   }
 
-  return overHttp
+  return value
 }
 
 const signalOf = (onChange: unknown) => {
@@ -131,11 +134,16 @@ const signalOf = (onChange: unknown) => {
   return signalling(onChange)
 }
 
+const flagsOf = (options?: RoomOptions) => ({
+  overHttp: flagOf(options?.creation?.overHttp, 'creation over http'),
+  requireSession: flagOf(options?.join?.requireSession, 'join require session')
+})
+
 export const settingsOf = (options?: RoomOptions) => ({
   format: formatOf(options?.code),
   grace: boundedInteger(options?.code?.grace, BOUNDS.grace),
   grantLifetime: boundedInteger(options?.grant?.lifetime, BOUNDS.grantLifetime),
-  overHttp: overHttpOf(options?.creation?.overHttp),
+  ...flagsOf(options),
   signal: signalOf(options?.onChange),
   ...limitsOf(options?.attempts)
 })

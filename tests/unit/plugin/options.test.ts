@@ -31,6 +31,15 @@ describe('betterRoom options', () => {
       }
     }
   )
+
+  test.each(['true', 1, null])(
+    'rejects the join session requirement %p at construction',
+    requireSession => {
+      expect(() => betterRoom({ join: { requireSession } as never })).toThrow(
+        TypeError
+      )
+    }
+  )
 })
 
 describe('betterRoom bounding its windows', () => {

@@ -70,6 +70,8 @@ const { membership } = data
 
 An anonymous caller gets a signed grant cookie naming their actor, `room_grant` under Better Auth's cookie prefix, valid for `grant.lifetime`. A caller with a Better Auth session resolves to that user's actor instead and carries no grant. Codes are matched after folding case and stripping spaces and dashes, so `k7qd-2m4p` is the same code.
 
+With `join.requireSession` on, a caller without a Better Auth session is refused as `JOIN_NEEDS_A_SESSION`, including a server call that carries no session headers. The refusal comes after the code resolves, so an unknown code still answers `CODE_DID_NOT_RESOLVE` and counts against the attempt budgets, and before anything is written, so no actor, seat or grant is left behind. It only governs new joins: anonymous members admitted before it was switched on keep their access until it expires or is revoked.
+
 ### Reading access
 
 ```ts
@@ -225,6 +227,7 @@ betterRoom({
   },
   grant: { lifetime: 60 * 60 * 24 * 7 },
   creation: { overHttp: false },
+  join: { requireSession: false },
   attempts: {
     window: 60,
     perIp: 10,
@@ -239,7 +242,7 @@ betterRoom({
 })
 ```
 
-The numeric options below are checked when the plugin is constructed, so a value outside its range throws a `RangeError` from `betterRoom()` rather than surfacing later on the request that first uses it. `creation.overHttp` must be a real boolean, so a JavaScript caller passing `'false'` gets a `TypeError` instead of an enabled flag. `code.format` must name a known format and `onChange` must be a function; anything else is a `TypeError` too. An `additionalFields` entry named after a field the plugin owns, such as `occupancy` or `id`, throws a `TypeError` too, because it would silently replace the plugin's definition; a renamed table or a malformed field of your own still surfaces through Better Auth's schema handling.
+The numeric options below are checked when the plugin is constructed, so a value outside its range throws a `RangeError` from `betterRoom()` rather than surfacing later on the request that first uses it. `creation.overHttp` and `join.requireSession` must be real booleans, so a JavaScript caller passing `'false'` gets a `TypeError` instead of an enabled flag. `code.format` must name a known format and `onChange` must be a function; anything else is a `TypeError` too. An `additionalFields` entry named after a field the plugin owns, such as `occupancy` or `id`, throws a `TypeError` too, because it would silently replace the plugin's definition; a renamed table or a malformed field of your own still surfaces through Better Auth's schema handling.
 
 Each duration has a ceiling as well as a floor, because a value large enough to overflow date arithmetic yields an invalid date, every comparison against it is false, and the mechanism it configures stops working while still looking configured. An attempt window past its ceiling would stop counting attempts at all.
 
@@ -402,6 +405,7 @@ if (error?.code === ROOM_ERROR_CODES.ROOM_AT_CAPACITY.code) {
 | `ROOM_EXPIRES_IN_THE_PAST` | 400 | a created room would expire before it began |
 | `PROMOTION_NEEDS_A_SESSION` | 401 | promotion arrived without a session |
 | `CREATION_NEEDS_A_SESSION` | 401 | creation over HTTP arrived without a session |
+| `JOIN_NEEDS_A_SESSION` | 401 | a join arrived without a session while `join.requireSession` is on |
 | `ROOM_LOCKED` | 403 | the room refuses joins by code |
 | `ROOM_CLOSED` | 403 | the room has ended |
 | `ROOM_EXPIRED` | 403 | the room's deadline passed |

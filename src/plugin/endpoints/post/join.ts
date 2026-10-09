@@ -4,7 +4,11 @@ import * as z from 'zod'
 import { resolveActor } from '@/core/actor'
 import { chargeFailure, isThrottled } from '@/core/operations/admission/attempt'
 import { join } from '@/core/operations/admission/join'
-import { tooManyAttemptsError, joinError } from '@/plugin/errors/refusals'
+import {
+  tooManyAttemptsError,
+  joinError,
+  joinNeedsASessionError
+} from '@/plugin/errors/refusals'
 import { carriersFrom, GRANT_COOKIE } from '@/plugin/http/carrier'
 import { membershipReport } from '@/plugin/http/report'
 import { attemptStore } from '@/plugin/stores/admission/attempt'
@@ -31,6 +35,7 @@ const joinBody = z.object({
 type JoinDeps = AttemptBudgets & {
   readonly identify: (secret: string) => CodeIdentifier
   readonly grantLifetime: number
+  readonly requireSession: boolean
   readonly signal: Signal
 }
 
@@ -92,8 +97,15 @@ export const joinEndpoint = (deps: JoinDeps) =>
         {
           codeIdentifier: identifier,
           now,
-          actor: async () =>
-            resolveActor(await carriersFrom(ctx, now), actorStore(adapter))
+          actor: async () => {
+            const carriers = await carriersFrom(ctx, now)
+
+            if (deps.requireSession && carriers.userId === null) {
+              throw joinNeedsASessionError()
+            }
+
+            return resolveActor(carriers, actorStore(adapter))
+          }
         },
         joinStore(adapter)
       )
