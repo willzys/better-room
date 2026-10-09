@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="public/banner-dark.gif">
-  <img alt="Better Room" src="public/banner-light.gif" width="1280">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/willzys/better-room/main/public/banner-dark.gif">
+  <img alt="Better Room" src="https://raw.githubusercontent.com/willzys/better-room/main/public/banner-light.gif" width="1280">
 </picture>
 
 # Better Room
