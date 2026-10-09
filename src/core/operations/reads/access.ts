@@ -26,6 +26,7 @@ export type Access =
       readonly found: true
       readonly room: Room
       readonly held: Usable<Membership>
+      readonly related: boolean
       readonly authorized: boolean
     }
 
@@ -38,6 +39,12 @@ export const isAuthorized = (
   held.leftAt === null &&
   membershipRefusal(held, now) === null &&
   !hasEnded(room, now)
+
+const isRelated = (
+  room: Room,
+  actor: Usable<Actor>,
+  held: Usable<Membership>
+) => held !== null || (actor !== null && room.createdBy === actor.id)
 
 export const readAccess = async (
   request: AccessRequest,
@@ -56,6 +63,7 @@ export const readAccess = async (
     found: true,
     room,
     held,
+    related: isRelated(room, request.actor, held),
     authorized: isAuthorized(room, held, request.now)
   }
 }
