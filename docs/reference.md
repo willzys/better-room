@@ -134,11 +134,11 @@ do {
 } while (before !== undefined)
 ```
 
-Pages follow the membership id, not recency, so the order is stable but carries no meaning; sort a page yourself if you want the newest first. Memberships without a deadline come first, then those with one.
+Pages follow the id of each membership's room, not recency, so the order is stable but carries no meaning; sort a page yourself if you want the newest first. Memberships without a deadline come first, then those with one.
 
 The 200 bound applies to the memberships read, before rooms that have closed or expired are filtered out. A page can therefore hold fewer than 200 entries, or none, while `next` still points forward; keep following `next` rather than stopping at an empty page.
 
-A value that is not shaped like a cursor is refused with 400. The cursor is not signed, so a well-shaped value you build yourself is accepted and resumes after the id it names; it can only skip your own memberships, never reveal anyone else's. Rows that join, leave or are revoked between two pages can shift what a later page holds, as with any cursor over live data.
+A value that is not shaped like a cursor is refused with 400. The cursor is not signed, so a well-shaped value you build yourself is accepted and resumes after the room id it names; it can only skip your own memberships, never reveal anyone else's. Rows that join, leave or are revoked between two pages can shift what a later page holds, as with any cursor over live data.
 
 ### Adding a member with a role
 
@@ -548,7 +548,7 @@ The plugin runs on whatever adapter Better Auth is given, with no transaction sp
 ### Queries
 
 - **No query relies on `OR`.** The SQL adapters and MongoDB group a `where` as all `AND` clauses joined to all `OR` clauses, but the memory adapter folds the list left to right, so a single `OR` would match rows belonging to other rooms there. Every disjunction is one query per branch, merged afterwards.
-- **Pages follow the id, never a timestamp.** Two writes in a row land in the same millisecond on a fast database, so a timestamp cursor skips rows. The membership listing pages by id, reads memberships without a deadline and those with one as separate branches, and lets the database order each branch instead of comparing strings in JavaScript, where collation differs.
+- **Pages follow a unique column, never a timestamp.** Two writes in a row land in the same millisecond on a fast database, so a timestamp cursor skips rows. The membership listing pages by the room id, which is unique among one actor's memberships, reads memberships without a deadline and those with one as separate branches, and lets the database order each branch instead of comparing strings in JavaScript, where collation differs. It does not page by the membership's own id, because the MongoDB adapter does not apply a sort on `id`.
 - **Expiry has one boundary.** A deadline equal to the current instant has already passed, in every check and every query.
 - **Every read is bounded, and a set the plugin acts on is read in full.** A listing says when it is partial and hands back a cursor. A rotation reads every active code page by page and demotes them in batches, so no code beyond a page stays active and no `in` list grows without limit. Each operation declares its own bound; the database layer only applies it.
 
