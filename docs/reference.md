@@ -1,59 +1,4 @@
-# better-room reference
-
-Room-scoped contextual authorization for [Better Auth](https://better-auth.com).
-
-Identity persistence belongs to Better Auth. This plugin decides who may act inside a given room, and for how long. Someone presenting a room code gets a membership, not an identity: joining is not authenticating.
-
-## Why better-room
-
-Many products need people to enter a shared space with nothing but a short code: a quiz read out in a classroom, a support session, a breakout room, a game lobby, a live poll. Building that on top of an auth library usually means bolting a `rooms` table onto sessions and discovering the hard parts one incident at a time. better-room is those hard parts, done once.
-
-- **Join without an account, keep it when you sign up.** An anonymous caller who presents a code gets a membership and a signed grant, not a user. When that person later signs in, [promotion](#signing-in-without-losing-the-room) carries their memberships over to the account instead of dropping them.
-- **Capacity that holds under load.** A room's limit is a guarded counter, not a check followed by a write, so two callers racing for the last seat cannot both get it. The same contract runs on SQLite, PostgreSQL and MongoDB through Kysely, Drizzle, Prisma and the MongoDB adapter, including a load test with thousands of requests in flight, and no race leaves the counter away from the seats actually held.
-- **Codes that are safe to leak a database over.** Codes are stored only as an HMAC keyed from your Better Auth secret, folded through an explicit ASCII table, rate limited per address and globally, and every failure looks the same, so a sweep learns nothing. Rotation keeps the previous code working for a grace window.
-- **Authorization, not just membership.** Rooms can be locked, closed or given a deadline; memberships carry your own roles and their own expiry; revocation is permanent and leaving is not. One question, `getRoomAccess`, answers whether someone may act in a room right now, over HTTP or when a WebSocket opens.
-- **No transactions required.** Every guarantee holds on whatever adapter Better Auth is given, with no write spanning two rows, so it works where your auth already lives. [How it stays correct](#how-it-stays-correct) lists every rule that makes that true.
-- **It cleans up after itself.** Deleting a user returns every seat their memberships held, and reconciliation recollects the seats of memberships that expired, so rooms do not slowly fill with ghosts.
-- **Realtime stays yours.** `onChange` tells you, after the write has landed, that someone joined, left, was revoked or that a room changed state. You fan it out through whatever transport you already run.
-
-It is not an identity provider, a permission engine or a realtime server. Better Auth owns who someone is, your application owns what each role may do, and your transport owns delivery; better-room owns who is in which room, under which role, and for how long.
-
-## Install
-
-```sh
-npm install better-room
-```
-
-Better Auth, its core package, Better Call and Zod 4 are peer dependencies, so the plugin shares your application's copy of each and its types match yours. Install them alongside if you have not already:
-
-```sh
-npm install better-auth @better-auth/core better-call zod
-```
-
-The package ships two entry points, `better-room` for the server plugin and `better-room/client` for the client one.
-
-## Set up
-
-```ts
-import { betterAuth } from 'better-auth'
-import { betterRoom } from 'better-room'
-
-export const auth = betterAuth({
-  database: /* your adapter */,
-  plugins: [betterRoom()]
-})
-```
-
-```ts
-import { createAuthClient } from 'better-auth/client'
-import { betterRoomClient } from 'better-room/client'
-
-export const client = createAuthClient({
-  plugins: [betterRoomClient()]
-})
-```
-
-Then run Better Auth's migration or schema generation so the five room tables exist.
+# Reference
 
 ## Capture the code when you create the room
 
@@ -629,7 +574,3 @@ The plugin runs on whatever adapter Better Auth is given, with no transaction sp
 ## Deliberately not here
 
 A permission engine, a realtime transport owned by the plugin, roles carried by a code, a reversible stored form of the code, a per-room lockout, and a `metadata` JSON column. Each was considered and left out for a recorded reason rather than forgotten. A permission engine is deferred rather than rejected. Change signalling arrived as `onChange`, which leaves the transport yours; helpers around it are listed under [Planned](#planned).
-
-## License
-
-MIT
