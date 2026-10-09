@@ -40,9 +40,9 @@ const read = async (members: Members, page: Page): Promise<Membership[]> => {
       page.branch === 'perpetual'
         ? { field: 'expiresAt', value: null }
         : { field: 'expiresAt', operator: 'gt', value: page.now },
-      ...beyond<MemberRow>('id', page.after)
+      ...beyond<MemberRow>('roomId', page.after)
     ],
-    sortBy: { field: 'id', direction: 'asc' },
+    sortBy: { field: 'roomId', direction: 'asc' },
     limit: page.limit
   })
 
@@ -69,7 +69,7 @@ const walk = async (
     return {
       memberships,
       complete: false,
-      next: { branch: from.branch, after: kept.at(-1)?.id ?? from.after }
+      next: { branch: from.branch, after: kept.at(-1)?.roomId ?? from.after }
     }
   }
 
