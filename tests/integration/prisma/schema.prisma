@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+  output = "../../../node_modules/.prisma/better-room"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id String @id
+  name String
+  email String @unique
+  emailVerified Boolean
+  image String?
+  createdAt DateTime
+  updatedAt DateTime
+  @@map("user")
+}
+
+model Session {
+  id String @id
+  expiresAt DateTime
+  token String @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId String
+  @@map("session")
+}
+
+model Account {
+  id String @id
+  accountId String
+  providerId String
+  userId String
+  accessToken String?
+  refreshToken String?
+  idToken String?
+  accessTokenExpiresAt DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope String?
+  password String?
+  createdAt DateTime
+  updatedAt DateTime
+  @@map("account")
+}
+
+model Verification {
+  id String @id
+  identifier String
+  value String
+  expiresAt DateTime
+  createdAt DateTime
+  updatedAt DateTime
+  @@map("verification")
+}
+
+model RoomActor {
+  id String @id
+  userId String? @unique
+  grantEpoch Int @default(0)
+  createdAt DateTime
+  @@map("roomActor")
+}
+
+model Room {
+  id String @id
+  status String @default("active")
+  memberCount Int @default(0)
+  maxMembers Int?
+  expiresAt DateTime?
+  createdBy String?
+  createdAt DateTime
+  @@map("room")
+}
+
+model RoomCode {
+  id String @id
+  identifier String @unique
+  roomId String
+  status String @default("active")
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime
+  @@map("roomCode")
+}
+
+model RoomMember {
+  id String @id
+  roomId String
+  actorId String
+  role String @default("participant")
+  joinedAt DateTime
+  expiresAt DateTime?
+  leftAt DateTime?
+  revokedAt DateTime?
+  occupancy Int @default(1)
+  releasedAt DateTime?
+
+  @@unique([roomId, actorId], map: "room_member_room_actor_uidx")
+  @@index([expiresAt])
+  @@map("roomMember")
+}
+
+model RoomAttempt {
+  id String @id
+  key String @unique
+  count Int @default(1)
+  lastAttemptAt DateTime
+  @@map("roomAttempt")
+}
+
