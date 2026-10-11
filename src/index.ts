@@ -19,7 +19,7 @@ export type {
   ReconciliationReport,
   RoomReport
 } from '@/plugin/http/report'
-export type { RoomEvent, RoomEventListener } from '@/plugin/hooks/events'
+export type { RoomEvent, RoomEventOf, RoomHooks } from '@/plugin/hooks/events'
 export type { RoomSchemaOption } from '@/plugin/schema/tables'
 export type { CodeFormatName } from '@/security/code-format'
 export { betterRoom } from '@/plugin'

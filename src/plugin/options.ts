@@ -1,4 +1,4 @@
-import { isRoomEventListener, signalling } from '@/plugin/hooks/events'
+import { assertRoomHooks, signalling } from '@/plugin/hooks/events'
 import { MAX_STORED_INTEGER } from '@/plugin/schema/tables'
 import {
   CODE_FORMAT_NAMES,
@@ -6,7 +6,7 @@ import {
   isCodeFormatName
 } from '@/security/code-format'
 
-import type { RoomEventListener } from '@/plugin/hooks/events'
+import type { RoomHooks } from '@/plugin/hooks/events'
 import type { RoomSchemaOption } from '@/plugin/schema/tables'
 import type { CodeFormatName } from '@/security/code-format'
 
@@ -86,7 +86,7 @@ export type RoomOptions = {
     readonly everyone?: number
   }
   readonly schema?: RoomSchemaOption
-  readonly onChange?: RoomEventListener
+  readonly hooks?: RoomHooks
 }
 
 const limitsOf = (attempts: RoomOptions['attempts']) => {
@@ -125,13 +125,18 @@ const flagOf = (value: unknown, name: string) => {
   return value
 }
 
-const signalOf = (onChange: unknown) => {
-  if (onChange === undefined) return signalling()
-  if (!isRoomEventListener(onChange)) {
-    throw new TypeError('onChange must be a function')
+const signalOf = (options?: RoomOptions) => {
+  if (options !== undefined && 'onChange' in options) {
+    throw new TypeError('onChange was replaced by hooks.onEvent')
   }
 
-  return signalling(onChange)
+  const hooks: unknown = options?.hooks
+
+  if (hooks === undefined) return signalling()
+
+  assertRoomHooks(hooks)
+
+  return signalling(hooks)
 }
 
 const flagsOf = (options?: RoomOptions) => ({
@@ -144,6 +149,6 @@ export const settingsOf = (options?: RoomOptions) => ({
   grace: boundedInteger(options?.code?.grace, BOUNDS.grace),
   grantLifetime: boundedInteger(options?.grant?.lifetime, BOUNDS.grantLifetime),
   ...flagsOf(options),
-  signal: signalOf(options?.onChange),
+  signal: signalOf(options),
   ...limitsOf(options?.attempts)
 })

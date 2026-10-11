@@ -17,7 +17,7 @@ Many products let people into a shared space with just a short code: a classroom
 - **Capacity that holds** when many people race for the last seat.
 - **Codes safe to leak a database over**: stored only as an HMAC, rate limited, rotatable.
 - **Authorization, not just membership**: lock, close, expire and revoke, with your own roles.
-- **Realtime stays yours**: `onChange` reports each saved change, and you broadcast it.
+- **Realtime stays yours**: `hooks` report each saved change, and you broadcast it.
 
 It is not an identity provider, a permission engine or a realtime server.
 
@@ -90,13 +90,20 @@ Hear about changes after they are saved:
 
 ```ts
 betterRoom({
-  onChange: event => {
-    if ('roomId' in event) sockets.to(event.roomId).emit(event.type, event)
+  hooks: {
+    onRevoked: event => {
+      sockets.close({ roomId: event.roomId, actorId: event.membership.actorId })
+    },
+    onEvent: event => {
+      if ('roomId' in event) sockets.to(event.roomId).emit(event.type, event)
+    }
   }
 })
 ```
 
-Commands go over HTTP and live updates go over your own socket. `onChange` is the bridge between the two.
+Each event has its own hook, typed to that event, and `onEvent` catches every event without one. Commands go over HTTP and live updates go over your own socket. `hooks` are the bridge between the two.
+
+`onEvent` here is this example's choice, not something the plugin does on its own: it receives only the events without a hook of their own, so `revoked` closes the socket and is not broadcast. To broadcast it as well, call the same code from `onRevoked`.
 
 Adding members with a role, revoking, rotating codes, locking, closing and reconciling capacity are administrative: they have no HTTP route, and your backend calls them through `auth.api` after deciding who may.
 

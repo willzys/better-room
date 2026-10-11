@@ -1,12 +1,10 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 
-import { betterRoom } from '@/plugin'
-
 import { registered, signedIn } from '../../../helpers/auth'
 import { codeOf, jarOf, joinedMember, onlyRow } from '../../../helpers/http'
 import { empty, memoryAuth, seedRoom } from '../../../helpers/memory'
 
-import type { RoomEvent } from '@/plugin/hooks/events'
+import type { RoomEvent, RoomHooks } from '@/plugin/hooks/events'
 
 const listening = async (
   listener: (event: RoomEvent) => void | Promise<void> = () => undefined
@@ -15,9 +13,11 @@ const listening = async (
   const code = await seedRoom(db, { room: { maxMembers: 2 } })
   const events: RoomEvent[] = []
   const auth = memoryAuth(db, {
-    onChange: async event => {
-      events.push(event)
-      await listener(event)
+    hooks: {
+      onEvent: async event => {
+        events.push(event)
+        await listener(event)
+      }
     }
   })
   const join = (cookie?: string) =>
@@ -220,13 +220,76 @@ describe('a listener that fails', () => {
   })
 })
 
-describe('the listener option', () => {
-  test.each(['broadcast', 1, {}])(
-    'refuses %p at construction, since it is not a function',
-    onChange => {
-      expect(() =>
-        Reflect.apply(betterRoom, undefined, [{ onChange }])
-      ).toThrow(new TypeError('onChange must be a function'))
+const hooked = async (hooks: RoomHooks) => {
+  const db = empty()
+  await seedRoom(db)
+  return memoryAuth(db, { hooks })
+}
+
+describe('dispatching to hooks', () => {
+  test('runs only the hook named after the event, never onEvent too', async () => {
+    const locked: RoomEvent[] = []
+    const generic: RoomEvent[] = []
+    const auth = await hooked({
+      onLocked: event => {
+        locked.push(event)
+      },
+      onEvent: event => {
+        generic.push(event)
+      }
+    })
+
+    await auth.api.lockRoom({ body: { roomId: 'room-1' } })
+    await auth.api.unlockRoom({ body: { roomId: 'room-1' } })
+
+    expect(locked).toEqual([
+      expect.objectContaining({ type: 'locked', roomId: 'room-1' })
+    ])
+    expect(generic.map(event => event.type)).toEqual(['unlocked'])
+  })
+
+  test('falls back to onEvent when a hook is explicitly undefined', async () => {
+    const generic: RoomEvent[] = []
+    const auth = await hooked({
+      onRotated: undefined,
+      onEvent: event => {
+        generic.push(event)
+      }
+    })
+
+    await auth.api.rotateRoomCode({ body: { roomId: 'room-1' } })
+
+    expect(generic).toEqual([{ type: 'rotated', roomId: 'room-1' }])
+  })
+
+  test('delivers nothing when neither a hook nor onEvent is given', async () => {
+    const unlocked: RoomEvent[] = []
+    const auth = await hooked({
+      onUnlocked: event => {
+        unlocked.push(event)
+      }
+    })
+
+    await auth.api.lockRoom({ body: { roomId: 'room-1' } })
+
+    expect(unlocked).toEqual([])
+  })
+
+  test('types each hook with the event it is named after', () => {
+    const hooks: RoomHooks = {
+      onJoined: event => {
+        const joined: 'joined' = event.type
+        void [joined, event.membership.actorId]
+      },
+      onRotated: event => {
+        // @ts-expect-error a rotation carries no membership
+        void event.membership
+      },
+      onPromoted: event => {
+        void [event.actorId, event.merged]
+      }
     }
-  )
+
+    expect(Object.keys(hooks)).toHaveLength(3)
+  })
 })

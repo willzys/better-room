@@ -236,13 +236,15 @@ betterRoom({
   schema: {
     // rename tables and columns; room and roomMember also take additionalFields
   },
-  onChange: event => {
-    // forward room changes to your realtime transport, see Realtime
+  hooks: {
+    onEvent: event => {
+      // forward room changes to your realtime transport, see Realtime
+    }
   }
 })
 ```
 
-The numeric options below are checked when the plugin is constructed, so a value outside its range throws a `RangeError` from `betterRoom()` rather than surfacing later on the request that first uses it. `creation.overHttp` and `join.requireSession` must be real booleans, so a JavaScript caller passing `'false'` gets a `TypeError` instead of an enabled flag. `code.format` must name a known format and `onChange` must be a function; anything else is a `TypeError` too. An `additionalFields` entry named after a field the plugin owns, such as `occupancy` or `id`, throws a `TypeError` too, because it would silently replace the plugin's definition; a renamed table or a malformed field of your own still surfaces through Better Auth's schema handling.
+The numeric options below are checked when the plugin is constructed, so a value outside its range throws a `RangeError` from `betterRoom()` rather than surfacing later on the request that first uses it. `creation.overHttp` and `join.requireSession` must be real booleans, so a JavaScript caller passing `'false'` gets a `TypeError` instead of an enabled flag. `code.format` must name a known format, and `hooks` must be an object whose keys are hook names and whose values are functions; anything else is a `TypeError` too, so a misspelled hook such as `onJoin` fails at construction instead of silently falling through to `onEvent`. Passing the removed `onChange` throws a `TypeError` that points at `hooks.onEvent`. An `additionalFields` entry named after a field the plugin owns, such as `occupancy` or `id`, throws a `TypeError` too, because it would silently replace the plugin's definition; a renamed table or a malformed field of your own still surfaces through Better Auth's schema handling.
 
 Each duration has a ceiling as well as a floor, because a value large enough to overflow date arithmetic yields an invalid date, every comparison against it is false, and the mechanism it configures stops working while still looking configured. An attempt window past its ceiling would stop counting attempts at all.
 
@@ -274,7 +276,7 @@ Once a code has resolved, the refusal is specific: `ROOM_LOCKED`, `ROOM_CLOSED`,
 Commands travel over HTTP and live updates travel over a socket. Creating, joining, adding, revoking and rotating are one-off commands that need a definite answer, an atomic write and a specific refusal, and `/better-room/join` also counts and throttles every attempt against a code. A request and a response give each of those a natural home, along with Better Auth's cookies, sessions and rate limiting. What happens once someone is inside, such as presence, messages and "someone joined", is a stream, and that is the part a WebSocket is for.
 
 ```
-client ── POST join ───────────▶ better-room ── onChange ──▶ your broker ──▶ your sockets
+client ── POST join ───────────▶ better-room ── hooks ─────▶ your broker ──▶ your sockets
 client ── open socket (cookies) ─▶ your server ── getRoomAccess ──▶ better-room
 ```
 
@@ -307,11 +309,14 @@ Authorization is checked once, at the upgrade, so a revoked member keeps a live 
 
 ```ts
 betterRoom({
-  onChange: event => {
-    if (event.type === 'revoked' || event.type === 'left') {
+  hooks: {
+    onRevoked: event => {
       sockets.close({ roomId: event.roomId, actorId: event.membership.actorId })
-    }
-    if (event.type === 'closed') sockets.close({ roomId: event.roomId })
+    },
+    onLeft: event => {
+      sockets.close({ roomId: event.roomId, actorId: event.membership.actorId })
+    },
+    onClosed: event => sockets.close({ roomId: event.roomId })
   }
 })
 ```
@@ -320,38 +325,91 @@ betterRoom({
 
 ### Broadcasting changes
 
-Pass `onChange`, and the plugin calls it after every change it saves:
+Pass `hooks`, and the plugin calls one of them after every change it saves. Each event has a hook named after it, `on` followed by its capitalised `type`, such as `onJoined` for `joined` and `onRevoked` for `revoked`, and `onEvent` catches every event that has no hook of its own:
 
 ```ts
 betterRoom({
-  onChange: event => {
-    if ('roomId' in event) sockets.to(event.roomId).emit(event.type, event)
+  hooks: {
+    onRevoked: event => {
+      sockets.close({ roomId: event.roomId, actorId: event.membership.actorId })
+    },
+    onEvent: event => {
+      if ('roomId' in event) sockets.to(event.roomId).emit(event.type, event)
+    }
   }
 })
 ```
 
-| `type` | Fields | Raised when |
-| --- | --- | --- |
-| `joined` | `roomId`, `membership` | a code admitted an actor, including a rejoin after leaving |
-| `added` | `roomId`, `membership` | `addRoomMember` added one |
-| `left` | `roomId`, `membership` | a member left |
-| `revoked` | `roomId`, `membership` | a membership was revoked |
-| `expired` | `roomId`, `membership` | `reconcileRoomCapacity` took back the seat of a membership whose deadline passed |
-| `created` | `roomId`, `room` | a room was created; its code is never part of an event |
-| `locked`, `unlocked`, `closed` | `roomId`, `room` | the room changed state |
-| `rotated` | `roomId` | the code was rotated; the new code is never part of an event |
-| `promoted` | `actorId`, `merged` | an anonymous actor was merged into `actorId` |
-| `erased` | `actorId` | the actor of a deleted user was erased |
+In the example above, `onEvent` broadcasts room events that have no configured event-specific hook. Since `onRevoked` handles `revoked`, that event closes the socket without being broadcast. This is a choice of the example, not a restriction of the plugin: to broadcast revocations too, call the same broadcast logic from `onRevoked`.
 
-`membership` and `room` are the same reports the endpoints return, typed as `RoomEvent`, and `RoomEventListener` types the callback. A `switch` on `event.type` narrows each one.
+Exactly one hook runs per event. When the event's own hook is given, only it runs and `onEvent` does not; otherwise `onEvent` runs; with neither, the event goes nowhere. A hook set to `undefined` counts as absent, so `onJoined: production ? notify : undefined` falls back to `onEvent`. Hooks are all optional, so `hooks: { onEvent }` alone hears everything. To run shared logic as well as a specific one, call it from the specific hook.
+
+| `type` | Hook | Fields | Raised when |
+| --- | --- | --- | --- |
+| `joined` | `onJoined` | `roomId`, `membership` | a code admitted an actor, including a rejoin after leaving |
+| `added` | `onAdded` | `roomId`, `membership` | `addRoomMember` added one |
+| `left` | `onLeft` | `roomId`, `membership` | a member left |
+| `revoked` | `onRevoked` | `roomId`, `membership` | a membership was revoked |
+| `expired` | `onExpired` | `roomId`, `membership` | `reconcileRoomCapacity` took back the seat of a membership whose deadline passed |
+| `created` | `onCreated` | `roomId`, `room` | a room was created; its code is never part of an event |
+| `locked`, `unlocked`, `closed` | `onLocked`, `onUnlocked`, `onClosed` | `roomId`, `room` | the room changed state |
+| `rotated` | `onRotated` | `roomId` | the code was rotated; the new code is never part of an event |
+| `promoted` | `onPromoted` | `actorId`, `merged` | an anonymous actor was merged into `actorId` |
+| `erased` | `onErased` | `actorId` | the actor of a deleted user was erased |
+
+`membership` and `room` are the same reports the endpoints return. Every hook receives the whole event, `type` included, typed to the one it is named after: `onJoined` gets `RoomEventOf<'joined'>`, so `event.membership` needs no narrowing, while `onEvent` gets the `RoomEvent` union, which a `switch` on `event.type` narrows. `RoomHooks` types the `hooks` object, which helps when you build it apart from `betterRoom()`.
+
+A handler kept in its own module names its event with `RoomEventOf`, and a whole set of hooks with `RoomHooks`:
+
+```ts
+import type { RoomEventOf, RoomHooks } from 'better-room'
+
+const closeMember = (event: RoomEventOf<'revoked' | 'left'>) => {
+  sockets.close({ roomId: event.roomId, actorId: event.membership.actorId })
+}
+
+export const hooks = {
+  onRevoked: closeMember,
+  onLeft: closeMember,
+  onEvent: event => {
+    if ('roomId' in event) sockets.to(event.roomId).emit(event.type, event)
+  }
+} satisfies RoomHooks
+```
+
+`satisfies RoomHooks` checks the names and types each handler, while `hooks` keeps its exact shape for `betterRoom({ hooks })`.
 
 What the signal guarantees, and what it does not:
 
 - It fires once per change that was saved, after the write landed, never for a refusal and never for a call that changed nothing: a second join by a member, leaving twice and locking a locked room are all silent.
 - It runs in the process that handled the request, and the request waits for it, so hand anything slow to a queue. With several instances, publish the event to your own broker, such as Redis pub/sub, and fan it out from there.
-- A listener that throws never undoes the change or fails the request. The error is logged through Better Auth's logger, and the event is not retried.
+- A hook that throws never undoes the change or fails the request. The error is logged through Better Auth's logger, and the event is not retried.
 - A deadline raises nothing when it passes. A membership or a room expires by the clock, not by a write, so schedule your own timer from `expiresAt` if your clients must hear about it at that moment. `expired` arrives later, when `reconcileRoomCapacity` takes the seat back, and only for a membership that neither left nor was revoked: a seat that reconciliation recollects after a revocation raises nothing new, because `revoked` already announced it.
 - A change made directly in the database, outside Better Auth, raises nothing.
+
+### Migrating from `onChange`
+
+`onChange` was replaced by `hooks` and no longer exists. A listener that handled every event moves to `onEvent` unchanged, since `onEvent` receives every event that has no hook of its own:
+
+```ts
+// before
+betterRoom({
+  onChange: event => {
+    if ('roomId' in event) sockets.to(event.roomId).emit(event.type, event)
+  }
+})
+
+// after
+betterRoom({
+  hooks: {
+    onEvent: event => {
+      if ('roomId' in event) sockets.to(event.roomId).emit(event.type, event)
+    }
+  }
+})
+```
+
+A branch on `event.type` can then move into the hook named after it, one at a time. Once an event has its own hook, `onEvent` no longer receives it, so take its branch out of `onEvent` in the same change. `RoomEventListener` is gone too: type the callback with `RoomEvent` or `RoomEventOf`, or the object with `RoomHooks`. Passing `onChange` still throws a `TypeError` at construction, so a missed upgrade fails at startup instead of silently dropping events.
 
 ### Planned
 
@@ -359,7 +417,7 @@ These are not shipped. They are recorded so the direction is visible; none chang
 
 - **`better-room/realtime`, a separate entry point or package.** A helper that validates a connection against the plugin so each integrator stops rewriting the upgrade check: read the grant or session from the upgrade headers, call the access check, and return the `roomId`, `actorId` and membership the socket speaks for, or a refusal to close with. It would stay outside `core/` and depend on no particular WebSocket library, taking the headers and giving back a result, so it fits `ws`, Bun, Hono, Socket.IO and others through thin adapters.
 - **Revalidation on a timer.** A helper that rechecks a live connection when `expiresAt` passes, since deadlines raise no event.
-- **A broadcast adapter.** A typed bridge from `onChange` to a broker such as Redis pub/sub, so several instances fan the same event out without each application writing the glue.
+- **A broadcast adapter.** A typed bridge from `hooks` to a broker such as Redis pub/sub, so several instances fan the same event out without each application writing the glue.
 - **A client subscription atom.** A client-side helper that opens the socket, reconnects after a refusal and exposes the room's events as an atom.
 
 The transport itself stays outside the plugin. A helper will validate and bridge; it will not own connections, retries or fan-out.
@@ -377,7 +435,8 @@ The server entry point also exports the types an integration names:
 | `RoomOptions` | the options `betterRoom()` takes |
 | `RoomSchemaOption` | the `schema` option: renamed tables and columns, and `additionalFields` for `room` and `roomMember` |
 | `CodeFormatName` | `'crockford'` or `'numeric'` |
-| `RoomEvent`, `RoomEventListener` | the events `onChange` receives, and the callback itself |
+| `RoomEvent`, `RoomEventOf` | every event the hooks receive, and the one event of a given `type`, such as `RoomEventOf<'joined'>` |
+| `RoomHooks` | the `hooks` option: one optional hook per event, plus `onEvent` |
 | `Room`, `RoomStatus`, `Membership`, `Actor`, `RoomCode`, `RoomCodeStatus`, `Held` | the domain shapes the reports are built from |
 | `Absent`, `Unlinked`, `Perpetual`, `Unbounded`, `Pending` | the names for a value that may be `null`: no link, no deadline, no limit, not happened yet |
 
@@ -573,8 +632,8 @@ The plugin runs on whatever adapter Better Auth is given, with no transaction sp
 
 - **Options fail at construction.** Ranges, runtime types and reserved schema fields are checked when `betterRoom()` runs, and every duration has a ceiling, because a value large enough to overflow date arithmetic yields an invalid date that silently disables what it configures.
 - **Responses are reports.** Each body is built field by field, so a column added to a table, by the plugin or by your `additionalFields`, never leaks into a response.
-- **Events follow writes.** `onChange` fires after a change has landed and only when something changed, and a listener that fails cannot undo the change or fail the request.
+- **Events follow writes.** A hook fires after a change has landed and only when something changed, and a hook that fails cannot undo the change or fail the request.
 
 ## Deliberately not here
 
-A permission engine, a realtime transport owned by the plugin, roles carried by a code, a reversible stored form of the code, a per-room lockout, and a `metadata` JSON column. Each was considered and left out for a recorded reason rather than forgotten. A permission engine is deferred rather than rejected. Change signalling arrived as `onChange`, which leaves the transport yours; helpers around it are listed under [Planned](#planned).
+A permission engine, a realtime transport owned by the plugin, roles carried by a code, a reversible stored form of the code, a per-room lockout, and a `metadata` JSON column. Each was considered and left out for a recorded reason rather than forgotten. A permission engine is deferred rather than rejected. Change signalling arrived as `hooks`, which leaves the transport yours; helpers around it are listed under [Planned](#planned).

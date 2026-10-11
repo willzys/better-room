@@ -134,3 +134,39 @@ describe('betterRoom error codes', () => {
     }
   })
 })
+
+describe('the hooks option', () => {
+  test.each(['broadcast', 1, null])(
+    'refuses %p at construction, since it is not an object',
+    hooks => {
+      expect(() => Reflect.apply(betterRoom, undefined, [{ hooks }])).toThrow(
+        new TypeError('hooks must be an object')
+      )
+    }
+  )
+
+  test.each(['broadcast', 1, {}])(
+    'refuses a hook of %p at construction, since it is not a function',
+    onJoined => {
+      expect(() =>
+        Reflect.apply(betterRoom, undefined, [{ hooks: { onJoined } }])
+      ).toThrow(new TypeError('hooks.onJoined must be a function'))
+    }
+  )
+
+  test('refuses a name that is not a hook, listing the ones that are', () => {
+    expect(() =>
+      Reflect.apply(betterRoom, undefined, [
+        { hooks: { onJoin: () => undefined } }
+      ])
+    ).toThrow(
+      /hooks\.onJoin is not a hook; expected one of onJoined, .*onEvent/
+    )
+  })
+
+  test('refuses the onChange it replaced, pointing at hooks.onEvent', () => {
+    expect(() =>
+      Reflect.apply(betterRoom, undefined, [{ onChange: () => undefined }])
+    ).toThrow(new TypeError('onChange was replaced by hooks.onEvent'))
+  })
+})
