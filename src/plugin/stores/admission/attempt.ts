@@ -1,7 +1,7 @@
 import { writeOrConfirm } from '@/plugin/stores/collision'
 import { found, toAttempt } from '@/plugin/stores/rows'
 import { attemptTable } from '@/plugin/stores/table'
-import { byKey } from '@/plugin/stores/where'
+import { byKey, staleBefore } from '@/plugin/stores/where'
 
 import type { DBAdapter } from 'better-auth/types'
 
@@ -61,9 +61,7 @@ export const attemptStore = (adapter: DBAdapter): AttemptStore => {
   }
 
   const prune = async (before: Date) => {
-    await attempts.deleteMany([
-      { field: 'lastAttemptAt', operator: 'lt', value: before }
-    ])
+    await attempts.deleteMany([staleBefore(before)])
   }
 
   return { read, open, restart, bump, prune }

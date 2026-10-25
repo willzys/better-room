@@ -7,6 +7,7 @@ import {
   enrolmentRaceContract,
   roomStateRaceContract
 } from './contract/admission'
+import { pruningContract } from './contract/admission-pruning'
 import {
   occupancyContract,
   leaveContract,
@@ -48,6 +49,7 @@ export const contract = (harness: Harness) => {
   refusalContract(harness)
   rotationContract(harness)
   backoffContract(harness)
+  pruningContract(harness)
   additionContract(harness)
   readmissionContract(harness)
   accessContract(harness)

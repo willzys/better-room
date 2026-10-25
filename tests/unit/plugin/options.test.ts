@@ -96,6 +96,7 @@ describe('betterRoom accepting a usable code', () => {
         'closeRoom',
         'createRoom',
         'lockRoom',
+        'pruneRoomAttempts',
         'reconcileRoomCapacity',
         'revokeRoomMember',
         'unlockRoom',

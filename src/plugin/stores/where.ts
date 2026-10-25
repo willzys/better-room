@@ -25,6 +25,12 @@ export const byKey = (key: string): Clause<AttemptRow>[] => [
   { field: 'key', value: key }
 ]
 
+export const staleBefore = (before: Date): Clause<AttemptRow> => ({
+  field: 'lastAttemptAt',
+  operator: 'lt',
+  value: before
+})
+
 export const beyond = <Row>(
   field: Extract<keyof Row, string>,
   cursor: Unstarted<string>
