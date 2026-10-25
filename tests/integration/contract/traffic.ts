@@ -184,13 +184,18 @@ const collidingWithItself = async (auth: Auth) => {
   const room = await opened(auth, 2)
   const cookie = jarOf(await join(auth, room.code))
 
-  await Promise.all([
+  const responses = await Promise.all([
     join(auth, room.code, cookie),
     departing(auth, room.id, cookie),
     join(auth, room.code, cookie),
     departing(auth, room.id, cookie),
     join(auth, room.code, cookie)
   ])
+  const refused = responses.filter(response => response.status !== 200)
+
+  for (const reason of await Promise.all(refused.map(codeOf))) {
+    expect(['ROOM_AT_CAPACITY', 'ROOM_CONTENDED']).toContain(reason)
+  }
 
   const members = (await rows(auth, 'roomMember')).filter(
     row => row.roomId === room.id
@@ -201,8 +206,7 @@ const collidingWithItself = async (auth: Auth) => {
 
   expect(members).toHaveLength(1)
   expect(occupying.length).toBeLessThanOrEqual(1)
-  expect(seats).toBeGreaterThanOrEqual(occupying.length)
-  expect(seats).toBeLessThanOrEqual(room.capacity)
+  expect(seats).toBe(occupying.length)
 }
 
 export const trafficContract = ({ start }: Harness) => {
