@@ -100,7 +100,7 @@ if (error) throw new Error(error.message)
 const { occupied, maxMembers } = data
 ```
 
-`occupied` is the number of memberships that hold the room right now: joined, not left, not revoked and not past their own deadline. It is counted from the memberships themselves, so it is exact, unlike `room.memberCount`, which is the admission gate and may sit above real occupancy after a departure that failed halfway. Show `occupied`, not `memberCount`, as the number of people in a room.
+`occupied` is the number of memberships that hold the room right now: joined, not left, not revoked and not past their own deadline. It is counted from the memberships themselves, so it is exact once concurrent changes settle, unlike `room.memberCount`, which is the admission gate and may sit above real occupancy after a departure that failed halfway. Show `occupied`, not `memberCount`, as the number of people in a room. It is read as two counts, one for memberships without a deadline and one for those with a future deadline, so a membership that leaves and is readmitted between them can be counted twice or not at all for that one read.
 
 It counts memberships, not presence. Someone who joined and closed the tab days ago still occupies the room until they leave, are revoked or expire; who is online right now belongs to your own realtime transport.
 
@@ -601,7 +601,7 @@ The plugin runs on whatever adapter Better Auth is given, with no transaction sp
 - **A seat is returned exactly once.** Each membership carries an `occupancy` of `1` or `0`. Leaving, revocation, expiry, promotion and user deletion all release through the same guarded write, which only succeeds while `occupancy > 0`, and only the call that flips it lowers the counter. However many of them notice the same membership, one seat comes back.
 - **One actor never pays twice.** A new membership is written vacant first, and its seat is taken by the same guarded write that takes a seat back on a rejoin, the one that flips `occupancy` from `0` to `1`. Two joins or additions of one actor both find that single row, and only one of them flips it; the other returns the seat it claimed at the gate.
 - **The room's state is part of the gate.** The guarded increment only matches a room that still admits: `active` for a join, `active` or `locked` for an addition. A lock or a close that lands after the room was read refuses the join without counting it.
-- **The counter is a gate, not a tally.** It may sit above the memberships holding the room after a write that failed halfway, and never below them. That is the direction that refuses a free seat instead of admitting past the limit. `getRoomOccupancy` counts the memberships themselves, so it stays exact, and reconciliation recollects what a membership still owes.
+- **The counter is a gate, not a tally.** It may sit above the memberships holding the room after a write that failed halfway, and never below them. That is the direction that refuses a free seat instead of admitting past the limit. The same holds for a moment while a seat is being returned, so joins and leaves of one actor sent at once may see a `ROOM_AT_CAPACITY` that a join sent afterwards does not. `getRoomOccupancy` counts the memberships themselves, so it is exact once concurrent changes settle, and reconciliation recollects what a membership still owes.
 
 ### Writes that race or fail
 
