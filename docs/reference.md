@@ -54,7 +54,7 @@ const { room, code } = await auth.api.createRoom({
 })
 ```
 
-Over HTTP, with `creation.overHttp` on, the caller must hold a session and is recorded as the creator; `userId` is ignored there. `maxMembers` is a positive integer, and an `expiresAt` that is not in the future is refused as `ROOM_EXPIRES_IN_THE_PAST` before anything is written, the creator's actor included. An `expiresAt` after `9999-12-31T23:59:59.999Z` is refused as `VALIDATION_ERROR`, since no supported database orders a later one correctly. When no free code can be issued the room is removed again and the call answers `CODE_SPACE_EXHAUSTED`; only the creator's actor may remain, and the next creation or join of that user reuses it.
+On the server, a `userId` must name an existing user and is refused as `UNKNOWN_USER` otherwise, before anything is written. Over HTTP, with `creation.overHttp` on, the caller must hold a session and is recorded as the creator; `userId` is ignored there. `maxMembers` is a positive integer, and an `expiresAt` that is not in the future is refused as `ROOM_EXPIRES_IN_THE_PAST` before anything is written, the creator's actor included. An `expiresAt` after `9999-12-31T23:59:59.999Z` is refused as `VALIDATION_ERROR`, since no supported database orders a later one correctly. When no free code can be issued the room is removed again and the call answers `CODE_SPACE_EXHAUSTED`; only the creator's actor may remain, and the next creation or join of that user reuses it.
 
 A newly created room has no members at all. `room.createdBy` records which actor opened it and grants no authority inside it: there is no host here, only the roles your application names. It does make the creator related to the room, so a room created over HTTP stays readable through `getRoomAccess` by the caller who opened it, although that caller holds no membership there.
 
@@ -476,6 +476,7 @@ if (error?.code === ROOM_ERROR_CODES.ROOM_AT_CAPACITY.code) {
 | `RESUME_IS_SERVER_ONLY` | 403 | resuming a promotion was called over HTTP |
 | `UNKNOWN_ROOM` | 404 | no room has that id; over HTTP, reading access, reading occupancy and leaving answer a missing room as they answer a foreign one instead |
 | `UNKNOWN_ACTOR` | 404 | no actor has that id, or the caller's actor was erased while the request ran |
+| `UNKNOWN_USER` | 404 | a server-side creation named a `userId` that no user has |
 | `ROOM_AT_CAPACITY` | 409 | the room has no seat left |
 | `ROOM_CONTENDED` | 409 | the room or the membership kept changing while the request tried to settle it |
 | `ALREADY_A_MEMBER` | 409 | the actor already holds a membership there |

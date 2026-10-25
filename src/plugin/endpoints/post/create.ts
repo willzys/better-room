@@ -7,12 +7,14 @@ import { minter } from '@/plugin/codes/mint'
 import {
   creationError,
   creationIsServerOnlyError,
-  creationNeedsASessionError
+  creationNeedsASessionError,
+  unknownUserError
 } from '@/plugin/errors/refusals'
 import { isServerCall } from '@/plugin/http/carrier'
 import { roomReport } from '@/plugin/http/report'
 import { LATEST_STORED_DATE, MAX_STORED_INTEGER } from '@/plugin/schema/tables'
 import { actorStore } from '@/plugin/stores/identity/actor'
+import { userLookup } from '@/plugin/stores/lookups'
 import { creationStore } from '@/plugin/stores/rooms/creation'
 
 import type { GenericEndpointContext } from '@better-auth/core'
@@ -53,7 +55,15 @@ const creatorOf = async (
   requested: Unlinked<string>,
   overHttp: boolean
 ): Promise<Unlinked<string>> => {
-  if (isServerCall(ctx)) return requested
+  if (isServerCall(ctx)) {
+    if (requested === null) return null
+
+    const known = await userLookup(ctx.context.adapter)(requested)
+
+    if (!known) throw unknownUserError()
+
+    return requested
+  }
   if (!overHttp) throw creationIsServerOnlyError()
 
   const session = await getSessionFromCtx(ctx)

@@ -19,6 +19,7 @@ export const ROOM_ERROR_CODES = defineErrorCodes({
   ALREADY_A_MEMBER: 'The actor already holds a membership in this room',
   EXACTLY_ONE_IDENTITY: 'Name the member by exactly one of userId or actorId',
   UNKNOWN_ACTOR: 'No such actor',
+  UNKNOWN_USER: 'No such user',
   NOT_A_MEMBER: 'The caller holds no membership in this room',
   ALREADY_REVOKED: 'The membership was already revoked',
   PROMOTION_NEEDS_A_SESSION: 'Promoting an actor requires an authenticated caller',

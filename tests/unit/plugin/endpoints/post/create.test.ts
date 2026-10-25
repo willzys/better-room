@@ -15,7 +15,7 @@ const scenario = (room?: RoomOptions) => {
     postRoute(auth, 'create', body, cookie === undefined ? {} : { cookie })
   const host = () => signedIn(auth, 'host@example.com')
 
-  return { db, create, host }
+  return { db, auth, create, host }
 }
 
 describe('creating a room over http', () => {
@@ -94,4 +94,22 @@ describe('creating a room refusing its expiry', () => {
     expect(db.room).toHaveLength(0)
     expect(db.roomActor).toHaveLength(0)
   })
+})
+
+describe('creating a room for a user server side', () => {
+  test.each(['', 'absent-user'])(
+    'refuses %p, which names no user, before writing anything',
+    async userId => {
+      const { db, auth } = scenario()
+      const response = await auth.api.createRoom({
+        body: { userId },
+        asResponse: true
+      })
+
+      expect(response.status).toBe(404)
+      expect(await codeOf(response)).toBe('UNKNOWN_USER')
+      expect(db.room).toHaveLength(0)
+      expect(db.roomActor).toHaveLength(0)
+    }
+  )
 })
