@@ -5,6 +5,8 @@ import type { Room } from '@/core/room'
 import type { CodeIssuer, Mint } from '@/core/room-code'
 import type { Usable } from '@/types/absence'
 
+const ACTIVE_CODES = { page: 100 } as const
+
 export type RotationRefusal =
   | 'closed'
   | 'exhausted'
@@ -14,11 +16,12 @@ export type RotationRefusal =
 export type RotationStore = CodeIssuer & {
   readonly room: (id: string) => Promise<Usable<Room>>
   readonly retireGrace: (roomId: string, at: Date) => Promise<void>
-  readonly activeCodes: (roomId: string) => Promise<string[]>
+  readonly activeCodes: (roomId: string, page: number) => Promise<string[]>
   readonly demoteOthers: (
     roomId: string,
     codeIds: string[],
-    until: Date
+    until: Date,
+    page: number
   ) => Promise<void>
 }
 
@@ -51,7 +54,7 @@ export const rotateCode = async (
 
   await store.retireGrace(request.roomId, request.now)
 
-  const replaced = await store.activeCodes(request.roomId)
+  const replaced = await store.activeCodes(request.roomId, ACTIVE_CODES.page)
 
   const minted = await issueCode(
     {
@@ -69,7 +72,8 @@ export const rotateCode = async (
     await store.demoteOthers(
       request.roomId,
       replaced,
-      new Date(request.now.getTime() + request.grace * 1000)
+      new Date(request.now.getTime() + request.grace * 1000),
+      ACTIVE_CODES.page
     )
   }
 
