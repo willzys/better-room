@@ -11,7 +11,7 @@ import {
 } from '@/plugin/errors/refusals'
 import { isServerCall } from '@/plugin/http/carrier'
 import { roomReport } from '@/plugin/http/report'
-import { MAX_STORED_INTEGER } from '@/plugin/schema/tables'
+import { LATEST_STORED_DATE, MAX_STORED_INTEGER } from '@/plugin/schema/tables'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { creationStore } from '@/plugin/stores/rooms/creation'
 
@@ -36,6 +36,7 @@ const createBody = z.object({
     .meta({ description: 'The seats the room admits, unbounded when absent' }),
   expiresAt: z.coerce
     .date()
+    .max(LATEST_STORED_DATE)
     .optional()
     .meta({ description: 'When the room expires, never when absent' })
 })

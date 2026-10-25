@@ -13,6 +13,8 @@ type RoomTable = BetterAuthPluginDBSchema[string]
 
 export const MAX_STORED_INTEGER = 2_147_483_647
 
+export const LATEST_STORED_DATE = new Date('9999-12-31T23:59:59.999Z')
+
 const timestamp = () =>
   ({
     type: 'date',

@@ -54,7 +54,7 @@ const { room, code } = await auth.api.createRoom({
 })
 ```
 
-Over HTTP, with `creation.overHttp` on, the caller must hold a session and is recorded as the creator; `userId` is ignored there. `maxMembers` is a positive integer, and an `expiresAt` that is not in the future is refused as `ROOM_EXPIRES_IN_THE_PAST` before anything is written, the creator's actor included. When no free code can be issued the room is removed again and the call answers `CODE_SPACE_EXHAUSTED`; only the creator's actor may remain, and the next creation or join of that user reuses it.
+Over HTTP, with `creation.overHttp` on, the caller must hold a session and is recorded as the creator; `userId` is ignored there. `maxMembers` is a positive integer, and an `expiresAt` that is not in the future is refused as `ROOM_EXPIRES_IN_THE_PAST` before anything is written, the creator's actor included. An `expiresAt` after `9999-12-31T23:59:59.999Z` is refused as `VALIDATION_ERROR`, since no supported database orders a later one correctly. When no free code can be issued the room is removed again and the call answers `CODE_SPACE_EXHAUSTED`; only the creator's actor may remain, and the next creation or join of that user reuses it.
 
 A newly created room has no members at all. `room.createdBy` records which actor opened it and grants no authority inside it: there is no host here, only the roles your application names. It does make the creator related to the room, so a room created over HTTP stays readable through `getRoomAccess` by the caller who opened it, although that caller holds no membership there.
 
@@ -152,7 +152,7 @@ const { membership } = await auth.api.addRoomMember({
 
 Name the member by exactly one of `userId` or `actorId`; both or neither is a `BAD_REQUEST`. `userId` resolves that user's actor and creates it when there is none. `actorId` resolves nothing and is refused as `UNKNOWN_ACTOR` when no such actor exists.
 
-An optional `expiresAt` gives the membership its own deadline, and one that is not in the future is refused as `MEMBERSHIP_EXPIRES_IN_THE_PAST`. Addition takes a seat like a join and is refused when the room is full, closed or expired, but not when it is locked: locking stops codes, not your backend. An actor who still holds a membership there is refused as `ALREADY_A_MEMBER`, and one whose membership was revoked as `MEMBERSHIP_REVOKED`, since revocation is permanent. An actor who left is readmitted on the same membership: it takes a seat again and carries the role and `expiresAt` this call names, not the ones it had before.
+An optional `expiresAt` gives the membership its own deadline, and one that is not in the future is refused as `MEMBERSHIP_EXPIRES_IN_THE_PAST`. One after `9999-12-31T23:59:59.999Z` is refused as `VALIDATION_ERROR`, as it is for a room. Addition takes a seat like a join and is refused when the room is full, closed or expired, but not when it is locked: locking stops codes, not your backend. An actor who still holds a membership there is refused as `ALREADY_A_MEMBER`, and one whose membership was revoked as `MEMBERSHIP_REVOKED`, since revocation is permanent. An actor who left is readmitted on the same membership: it takes a seat again and carries the role and `expiresAt` this call names, not the ones it had before.
 
 An elevated role can only come from server-side addition, never from presenting a code. That is what keeps discovery and privilege separate.
 

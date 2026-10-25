@@ -80,4 +80,18 @@ describe('creating a room refusing its expiry', () => {
     expect(db.room).toHaveLength(0)
     expect(db.roomActor).toHaveLength(0)
   })
+
+  test('refuses an expiry no supported database orders correctly', async () => {
+    const { db, create, host } = scenario(ENABLED)
+    const cookie = await host()
+    const response = await create(
+      { expiresAt: '+010000-01-01T00:00:00Z' },
+      cookie
+    )
+
+    expect(response.status).toBe(400)
+    expect(await codeOf(response)).toBe('VALIDATION_ERROR')
+    expect(db.room).toHaveLength(0)
+    expect(db.roomActor).toHaveLength(0)
+  })
 })
