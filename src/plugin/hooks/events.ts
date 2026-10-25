@@ -76,7 +76,7 @@ type Reporter = {
   readonly error: (message: string, ...details: unknown[]) => void
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
+export const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 export const assertRoomHooks: (
