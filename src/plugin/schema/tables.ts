@@ -2,7 +2,7 @@ import { mergeSchema } from 'better-auth/db'
 
 import { ROOM_STATUSES } from '@/core/room'
 import { ROOM_CODE_STATUSES } from '@/core/room-code'
-import { extendedTable } from '@/plugin/schema/extension'
+import { distinctColumns, extendedTable } from '@/plugin/schema/extension'
 
 import type { BetterAuthPluginDBSchema, DBFieldAttribute } from 'better-auth/db'
 import type { InferOptionSchema } from 'better-auth/types'
@@ -182,16 +182,18 @@ export type RoomSchemaOption = InferOptionSchema<BaseSchema> & {
 export const createRoomSchema = (options?: RoomSchemaOption) => {
   const base = baseSchema()
 
-  return mergeSchema(
-    {
-      ...base,
-      room: extendedTable('room', base.room, options?.room),
-      roomMember: extendedTable(
-        'roomMember',
-        base.roomMember,
-        options?.roomMember
-      )
-    },
-    options
+  return distinctColumns(
+    mergeSchema(
+      {
+        ...base,
+        room: extendedTable('room', base.room, options?.room),
+        roomMember: extendedTable(
+          'roomMember',
+          base.roomMember,
+          options?.roomMember
+        )
+      },
+      options
+    )
   )
 }
