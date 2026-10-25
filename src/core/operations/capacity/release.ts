@@ -1,6 +1,6 @@
 import type { Membership } from '@/core/membership'
 
-export type Withdrawal = 'left' | 'none'
+export type Withdrawal = 'left' | 'owed' | 'none'
 
 export type ReleaseStore = {
   readonly endOccupancy: (

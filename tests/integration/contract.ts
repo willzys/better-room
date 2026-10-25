@@ -12,9 +12,9 @@ import {
   leaveContract,
   leaveRefusalContract,
   revocationContract,
-  reconciliationContract,
   capacityRaceContract
 } from './contract/capacity'
+import { reconciliationContract } from './contract/capacity-reconciliation'
 import { rotationContract } from './contract/codes'
 import {
   promotionContract,

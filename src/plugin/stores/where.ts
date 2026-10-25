@@ -44,6 +44,17 @@ export const SEATABLE: Clause<MemberRow>[] = [
   { field: 'revokedAt', value: null }
 ]
 
+export const lapsedBy = (now: Date): Clause<MemberRow>[] => [
+  { field: 'expiresAt', operator: 'ne', value: null },
+  { field: 'expiresAt', operator: 'lte', value: now }
+]
+
+export const REVOKED: Clause<MemberRow> = {
+  field: 'revokedAt',
+  operator: 'ne',
+  value: null
+}
+
 export const UNRELEASED: Clause<MemberRow> = {
   field: 'releasedAt',
   value: null

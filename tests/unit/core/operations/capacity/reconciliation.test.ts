@@ -6,13 +6,19 @@ import { EARLIER, LATER, NOW, membership } from '../../../../helpers/fixtures'
 
 import type { Membership } from '@/core/membership'
 import type { ReconciliationStore } from '@/core/operations/capacity/reconciliation'
+import type { Withdrawal } from '@/core/operations/capacity/release'
 
 const store = (
   owing: Membership[],
-  claimed: (id: string) => boolean = () => true
+  claimed: (id: string) => boolean = () => true,
+  withdrawals: Withdrawal[] = []
 ): ReconciliationStore => ({
   owing: () => Promise.resolve(owing),
-  endOccupancy: id => Promise.resolve(claimed(id)),
+  endOccupancy: (id, _at, withdrawal) => {
+    withdrawals.push(withdrawal)
+
+    return Promise.resolve(claimed(id))
+  },
   lowerCount: () => Promise.resolve()
 })
 
@@ -49,5 +55,17 @@ describe('reconcile', () => {
 
     expect(reconciled.released).toBe(1)
     expect(reconciled.lapsed.map(lapsed => lapsed.id)).toEqual(['taken'])
+  })
+
+  test('claims each seat only while it is still owed', async () => {
+    const withdrawals: Withdrawal[] = []
+    const owing = [membership({ id: 'expired', expiresAt: EARLIER })]
+
+    await reconcile(
+      { now: NOW, batch: 10 },
+      store(owing, () => true, withdrawals)
+    )
+
+    expect(withdrawals).toEqual(['owed'])
   })
 })

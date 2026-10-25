@@ -1,7 +1,7 @@
 import { releaseStore } from '@/plugin/stores/capacity/release'
 import { toMembership } from '@/plugin/stores/rows'
 import { memberTable } from '@/plugin/stores/table'
-import { OCCUPIED } from '@/plugin/stores/where'
+import { lapsedBy, OCCUPIED, REVOKED } from '@/plugin/stores/where'
 
 import type { DBAdapter } from 'better-auth/types'
 
@@ -20,8 +20,8 @@ export const reconciliationStore = (
       members.findMany({ where: [OCCUPIED, ...where], limit: batch })
 
     const pages = await Promise.all([
-      holding([{ field: 'expiresAt', operator: 'lte', value: now }]),
-      holding([{ field: 'revokedAt', operator: 'ne', value: null }])
+      holding(lapsedBy(now)),
+      holding([REVOKED])
     ])
 
     const seen = new Map<string, Membership>()
