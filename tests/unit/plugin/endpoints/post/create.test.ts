@@ -68,3 +68,16 @@ describe('creating a room refusing its seats', () => {
     }
   )
 })
+
+describe('creating a room refusing its expiry', () => {
+  test('writes no actor for a creator whose room expires in the past', async () => {
+    const { db, create, host } = scenario(ENABLED)
+    const cookie = await host()
+    const response = await create({ expiresAt: '2020-01-01T00:00:00Z' }, cookie)
+
+    expect(response.status).toBe(400)
+    expect(await codeOf(response)).toBe('ROOM_EXPIRES_IN_THE_PAST')
+    expect(db.room).toHaveLength(0)
+    expect(db.roomActor).toHaveLength(0)
+  })
+})

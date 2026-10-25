@@ -45,7 +45,7 @@ const store = (seed: { issued?: boolean[]; failure?: Error }) => {
 const request = (
   overrides: Partial<Parameters<typeof createRoom>[0]> = {}
 ) => ({
-  createdBy: null,
+  createdBy: () => Promise.resolve(null),
   maxMembers: null,
   expiresAt: null,
   mint: minter(),
@@ -75,7 +75,11 @@ describe('createRoom', () => {
 
     const created = createdOf(
       await createRoom(
-        request({ createdBy: 'actor-1', maxMembers: 4, expiresAt }),
+        request({
+          createdBy: () => Promise.resolve('actor-1'),
+          maxMembers: 4,
+          expiresAt
+        }),
         instance
       )
     )
@@ -107,15 +111,21 @@ describe('createRoom refusing', () => {
     ['already passed', EARLIER],
     ['is exactly now', NOW]
   ])(
-    'refuses an expiry that %s before opening a room',
+    'refuses an expiry that %s before resolving the creator',
     async (_label, expiresAt) => {
       const { instance, opened } = store({})
+      const resolved: string[] = []
+      const createdBy = () => {
+        resolved.push('actor-1')
 
-      expect(await createRoom(request({ expiresAt }), instance)).toEqual({
-        created: false,
-        refusal: 'expires-in-the-past'
-      })
+        return Promise.resolve('actor-1')
+      }
+
+      expect(
+        await createRoom(request({ expiresAt, createdBy }), instance)
+      ).toEqual({ created: false, refusal: 'expires-in-the-past' })
       expect(opened).toEqual([])
+      expect(resolved).toEqual([])
     }
   )
 

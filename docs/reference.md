@@ -54,7 +54,7 @@ const { room, code } = await auth.api.createRoom({
 })
 ```
 
-Over HTTP, with `creation.overHttp` on, the caller must hold a session and is recorded as the creator; `userId` is ignored there. `maxMembers` is a positive integer, and an `expiresAt` that is not in the future is refused as `ROOM_EXPIRES_IN_THE_PAST` before anything is written. When no free code can be issued the room is removed again and the call answers `CODE_SPACE_EXHAUSTED`, so a refused creation leaves nothing behind.
+Over HTTP, with `creation.overHttp` on, the caller must hold a session and is recorded as the creator; `userId` is ignored there. `maxMembers` is a positive integer, and an `expiresAt` that is not in the future is refused as `ROOM_EXPIRES_IN_THE_PAST` before anything is written, the creator's actor included. When no free code can be issued the room is removed again and the call answers `CODE_SPACE_EXHAUSTED`; only the creator's actor may remain, and the next creation or join of that user reuses it.
 
 A newly created room has no members at all. `room.createdBy` records which actor opened it and grants no authority inside it: there is no host here, only the roles your application names. It does make the creator related to the room, so a room created over HTTP stays readable through `getRoomAccess` by the caller who opened it, although that caller holds no membership there.
 

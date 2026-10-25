@@ -77,12 +77,12 @@ export const createEndpoint = (deps: CreateDeps) =>
         deps.overHttp
       )
 
-      const createdBy =
-        creator === null ? null : await actorIdOf(creator, actorStore(adapter))
-
       const created = await createRoom(
         {
-          createdBy,
+          createdBy: async () =>
+            creator === null
+              ? null
+              : await actorIdOf(creator, actorStore(adapter)),
           maxMembers: ctx.body.maxMembers ?? null,
           expiresAt: ctx.body.expiresAt ?? null,
           mint: minter(deps.format, deps.identify(secret)),
