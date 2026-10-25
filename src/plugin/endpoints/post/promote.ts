@@ -13,8 +13,11 @@ import { carriersFrom, GRANT_COOKIE, isServerCall } from '@/plugin/http/carrier'
 import { promotionReport } from '@/plugin/http/report'
 import { promotionStore } from '@/plugin/stores/identity/promotion'
 
+import type { GenericEndpointContext } from '@better-auth/core'
+
 import type { Promoted } from '@/core/operations/identity/promotion'
 import type { Signal } from '@/plugin/hooks/events'
+import type { Usable } from '@/types/absence'
 
 const promoteBody = z
   .object({
@@ -26,6 +29,28 @@ const promoteBody = z
     })
   })
   .optional()
+
+type Resumption = {
+  readonly actorId: string
+  readonly userId: string
+}
+
+const resumptionOf = (
+  ctx: Pick<GenericEndpointContext, 'request'>,
+  body: { actorId?: string | undefined; userId?: string | undefined } = {}
+): Usable<Resumption> => {
+  const server = isServerCall(ctx)
+
+  if (body.actorId === undefined && (!server || body.userId === undefined)) {
+    return null
+  }
+  if (!server) throw resumeIsServerOnlyError()
+  if (body.actorId === undefined || body.userId === undefined) {
+    throw resumeNeedsBothNamesError()
+  }
+
+  return { actorId: body.actorId, userId: body.userId }
+}
 
 const announced = async (
   promoted: Promoted,
@@ -49,17 +74,11 @@ export const promoteEndpoint = (signal: Signal) =>
     async ctx => {
       const now = new Date()
       const { adapter, secret } = ctx.context
-      const named = ctx.body?.actorId
+      const resumption = resumptionOf(ctx, ctx.body)
 
-      if (named !== undefined) {
-        if (!isServerCall(ctx)) throw resumeIsServerOnlyError()
-
-        const userId = ctx.body?.userId
-
-        if (userId === undefined) throw resumeNeedsBothNamesError()
-
+      if (resumption !== null) {
         const resumed = await promote(
-          { userId, actorId: named, authority: { kind: 'server' }, now },
+          { ...resumption, authority: { kind: 'server' }, now },
           promotionStore(adapter)
         )
 
