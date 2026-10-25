@@ -359,7 +359,7 @@ Exactly one hook runs per event. When the event's own hook is given, only it run
 | `promoted` | `onPromoted` | `actorId`, `merged` | an anonymous actor was merged into `actorId` |
 | `erased` | `onErased` | `actorId` | the actor of a deleted user was erased |
 
-`membership` and `room` are the same reports the endpoints return. Every hook receives the whole event, `type` included, typed to the one it is named after: `onJoined` gets `RoomEventOf<'joined'>`, so `event.membership` needs no narrowing, while `onEvent` gets the `RoomEvent` union, which a `switch` on `event.type` narrows. `RoomHooks` types the `hooks` object, which helps when you build it apart from `betterRoom()`.
+`membership` and `room` are the same reports the endpoints return, and each hook receives its own copy, so changing it, its dates included, changes neither the response nor the stored row. Every hook receives the whole event, `type` included, typed to the one it is named after: `onJoined` gets `RoomEventOf<'joined'>`, so `event.membership` needs no narrowing, while `onEvent` gets the `RoomEvent` union, which a `switch` on `event.type` narrows. `RoomHooks` types the `hooks` object, which helps when you build it apart from `betterRoom()`.
 
 A handler kept in its own module names its event with `RoomEventOf`, and a whole set of hooks with `RoomHooks`:
 

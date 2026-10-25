@@ -109,7 +109,7 @@ export const signalling =
     if (hook === undefined) return
 
     try {
-      await hook(event)
+      await hook(structuredClone(event))
     } catch (error) {
       logger.error(
         `better-room could not deliver a ${event.type} event; the change itself was saved`,
