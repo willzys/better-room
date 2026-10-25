@@ -386,7 +386,7 @@ What the signal guarantees, and what it does not:
 - It fires once per change that was saved, after the write landed, never for a refusal and never for a call that changed nothing: a second join by a member, leaving twice and locking a locked room are all silent.
 - It runs in the process that handled the request, and the request waits for it, so hand anything slow to a queue. With several instances, publish the event to your own broker, such as Redis pub/sub, and fan it out from there.
 - A hook that throws never undoes the change or fails the request. The error is logged through Better Auth's logger, and the event is not retried.
-- A deadline raises nothing when it passes. A membership or a room expires by the clock, not by a write, so schedule your own timer from `expiresAt` if your clients must hear about it at that moment. `expired` arrives later, when `reconcileRoomCapacity` takes the seat back, and only for a membership that neither left nor was revoked: a seat that reconciliation recollects after a revocation raises nothing new, because `revoked` already announced it.
+- A deadline raises nothing when it passes. A membership or a room expires by the clock, not by a write, so schedule your own timer from `expiresAt` if your clients must hear about it at that moment. `expired` arrives later, when `reconcileRoomCapacity` takes the seat back, carries the membership as that write found it rather than as the batch read it, and only for a membership that neither left nor was revoked: a seat that reconciliation recollects after a revocation raises nothing new, because `revoked` already announced it.
 - A change made directly in the database, outside Better Auth, raises nothing.
 
 ### Migrating from `onChange`

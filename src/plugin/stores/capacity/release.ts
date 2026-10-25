@@ -1,9 +1,11 @@
+import { found, toMembership } from '@/plugin/stores/rows'
 import { memberTable, roomTable } from '@/plugin/stores/table'
 import { byId, lapsedBy, OCCUPIED, REVOKED } from '@/plugin/stores/where'
 
 import type { DBAdapter } from 'better-auth/types'
 
 import type {
+  ReclaimStore,
   ReleaseStore,
   Withdrawal
 } from '@/core/operations/capacity/release'
@@ -27,14 +29,13 @@ export const lowering = (adapter: DBAdapter) => {
 export const releaseStore = (adapter: DBAdapter): ReleaseStore => {
   const members = memberTable(adapter)
 
-  const ending = async (
+  const endOccupancy = async (
     membershipId: string,
     at: Date,
-    withdrawal: Withdrawal,
-    still: Clause<MemberRow>[]
+    withdrawal: Withdrawal
   ) => {
     const ended = await members.incrementOne({
-      where: [...byId(membershipId), OCCUPIED, ...still],
+      where: [...byId(membershipId), OCCUPIED],
       increment: { occupancy: -1 },
       set:
         withdrawal === 'left'
@@ -45,19 +46,29 @@ export const releaseStore = (adapter: DBAdapter): ReleaseStore => {
     return ended !== null
   }
 
-  const endOccupancy = async (
+  return { endOccupancy, lowerCount: lowering(adapter) }
+}
+
+export const reclaimStore = (adapter: DBAdapter): ReclaimStore => {
+  const members = memberTable(adapter)
+
+  const claiming = async (
     membershipId: string,
     at: Date,
-    withdrawal: Withdrawal
-  ) => {
-    if (withdrawal !== 'owed') {
-      return ending(membershipId, at, withdrawal, [])
-    }
+    still: Clause<MemberRow>[]
+  ) =>
+    found(
+      await members.incrementOne({
+        where: [...byId(membershipId), OCCUPIED, ...still],
+        increment: { occupancy: -1 },
+        set: { releasedAt: at }
+      }),
+      toMembership
+    )
 
-    const lapsed = await ending(membershipId, at, withdrawal, lapsedBy(at))
+  const reclaim = async (membershipId: string, at: Date) =>
+    (await claiming(membershipId, at, lapsedBy(at))) ??
+    claiming(membershipId, at, [REVOKED])
 
-    return lapsed || ending(membershipId, at, withdrawal, [REVOKED])
-  }
-
-  return { endOccupancy, lowerCount: lowering(adapter) }
+  return { reclaim, lowerCount: lowering(adapter) }
 }

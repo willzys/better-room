@@ -17,7 +17,7 @@ const expiring = async (auth: Auth, membershipId: string, expiresAt: Date) => {
   })
 }
 
-const readmittedAfterTheSweepRead = async (auth: Auth) => {
+const readmittedAfterTheSweepRead = async (auth: Auth, lapsing?: Date) => {
   const lobby = await auth.api.createRoom({ body: {} })
   const created = await auth.api.createRoom({ body: { maxMembers: 1 } })
   const response = await join(auth, lobby.code)
@@ -41,8 +41,16 @@ const readmittedAfterTheSweepRead = async (auth: Auth) => {
     200
   )
   await auth.api.addRoomMember({
-    body: { roomId: created.room.id, actorId, role: 'participant' }
+    body: {
+      roomId: created.room.id,
+      actorId,
+      role: 'participant',
+      ...(lapsing === undefined ? {} : { expiresAt: until })
+    }
   })
+  if (lapsing !== undefined) {
+    await expiring(auth, added.membership.id, lapsing)
+  }
 
   const reconciled = await reconcile(
     { now: new Date(), batch: 10 },
@@ -108,6 +116,19 @@ export const reconciliationContract = ({ start }: Harness) => {
       expect(reconciled.released).toBe(0)
       expect(Number(member?.occupancy)).toBe(1)
       expect(Number(room?.memberCount)).toBe(1)
+    })
+
+    test('names a readmission that lapsed again by its own deadline', async () => {
+      const auth = await start({})
+      const lapsing = new Date(Math.floor(Date.now() / 1000) * 1000 - 30_000)
+      const { reconciled, membershipId } = await readmittedAfterTheSweepRead(
+        auth,
+        lapsing
+      )
+
+      expect(reconciled.released).toBe(1)
+      expect(reconciled.lapsed.map(lapsed => lapsed.id)).toEqual([membershipId])
+      expect(reconciled.lapsed[0]?.expiresAt).toEqual(lapsing)
     })
   })
 }

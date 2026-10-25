@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { joinStore } from '@/plugin/stores/admission/join'
 import { reconciliationStore } from '@/plugin/stores/capacity/reconciliation'
-import { releaseStore } from '@/plugin/stores/capacity/release'
+import { reclaimStore, releaseStore } from '@/plugin/stores/capacity/release'
 
 import { EARLIER, LATER, NOW } from '../../../helpers/fixtures'
 import { onlyRow } from '../../../helpers/http'
@@ -162,9 +162,12 @@ describe('returning a seat reconciliation owes', () => {
     seated(db, 1)
     db.roomMember.push(occupied(state))
 
-    expect(
-      await releaseStore(adapterFor(db)).endOccupancy('member-1', NOW, 'owed')
-    ).toBe(true)
+    const reclaimed = await reclaimStore(adapterFor(db)).reclaim(
+      'member-1',
+      NOW
+    )
+
+    expect(reclaimed?.id).toBe('member-1')
     expect(onlyRow(db.roomMember).occupancy).toBe(0)
   })
 
@@ -176,9 +179,9 @@ describe('returning a seat reconciliation owes', () => {
     seated(db, 1)
     db.roomMember.push(occupied(state))
 
-    expect(
-      await releaseStore(adapterFor(db)).endOccupancy('member-1', NOW, 'owed')
-    ).toBe(false)
+    expect(await reclaimStore(adapterFor(db)).reclaim('member-1', NOW)).toBe(
+      null
+    )
     expect(onlyRow(db.roomMember).occupancy).toBe(1)
   })
 })

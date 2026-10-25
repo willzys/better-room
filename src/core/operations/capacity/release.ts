@@ -1,6 +1,7 @@
 import type { Membership } from '@/core/membership'
+import type { Usable } from '@/types/absence'
 
-export type Withdrawal = 'left' | 'owed' | 'none'
+export type Withdrawal = 'left' | 'none'
 
 export type ReleaseStore = {
   readonly endOccupancy: (
@@ -24,6 +25,28 @@ export const release = async (
   await store.lowerCount(membership.roomId)
 
   return true
+}
+
+export type ReclaimStore = {
+  readonly reclaim: (
+    membershipId: string,
+    at: Date
+  ) => Promise<Usable<Membership>>
+  readonly lowerCount: (roomId: string) => Promise<void>
+}
+
+export const reclaim = async (
+  membership: Pick<Membership, 'id' | 'roomId'>,
+  at: Date,
+  store: ReclaimStore
+): Promise<Usable<Membership>> => {
+  const reclaimed = await store.reclaim(membership.id, at)
+
+  if (reclaimed === null) return null
+
+  await store.lowerCount(membership.roomId)
+
+  return reclaimed
 }
 
 export type DiscardStore = ReleaseStore & {

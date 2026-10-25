@@ -1,4 +1,4 @@
-import { releaseStore } from '@/plugin/stores/capacity/release'
+import { reclaimStore } from '@/plugin/stores/capacity/release'
 import { toMembership } from '@/plugin/stores/rows'
 import { memberTable } from '@/plugin/stores/table'
 import { lapsedBy, OCCUPIED, REVOKED } from '@/plugin/stores/where'
@@ -37,5 +37,5 @@ export const reconciliationStore = (
     return [...seen.values()]
   }
 
-  return { ...releaseStore(adapter), owing }
+  return { ...reclaimStore(adapter), owing }
 }
