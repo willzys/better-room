@@ -267,6 +267,8 @@ Call `betterRoom()` once per `betterAuth()` instance. The code subkey is derived
 
 A failed code is counted twice: against the caller's address and against a global budget. An address that spends its own ceiling is refused until its window rolls over. The global ceiling only gates an address that has a failure of its own on record, so a flood cannot lock out callers who never guessed anything. There is no per-room lockout, because that would let anyone who knows a room exists lock its members out of it.
 
+A failure that finishes after a later one is still counted and never moves its budget's window back. A server whose clock runs behind the others therefore cannot shorten a lockout, while one whose clock runs ahead lengthens it.
+
 Every failure to resolve a code is the same `CODE_DID_NOT_RESOLVE`, whether the code never existed, fell out of its grace window or was revoked. Distinguishing them would answer "is this code live?" without entering the room and without any side effect of joining, which roughly halves the work of sweeping the code space.
 
 Once a code has resolved, the refusal is specific: `ROOM_LOCKED`, `ROOM_CLOSED`, `ROOM_EXPIRED`, `ROOM_AT_CAPACITY`, `MEMBERSHIP_REVOKED` or `MEMBERSHIP_EXPIRED`, and `UNKNOWN_ACTOR` or `ROOM_CONTENDED` in the rare race described under [How it stays correct](#how-it-stays-correct). The caller has already proved the code is good, so naming the reason leaks nothing further. The uniformity is deliberate and looks like a developer experience bug; it covers one half of the flow, not both.

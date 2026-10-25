@@ -56,3 +56,28 @@ describe('restarting an attempt budget whose window elapsed', () => {
     })
   })
 })
+
+describe('counting an attempt inside its window', () => {
+  const before = new Date(EARLIER.getTime() - 60_000)
+
+  test('moves the last attempt forward to a later one', async () => {
+    const { db, store } = spent()
+
+    expect(await store.bump('global', before, NOW)).toBe(true)
+    expect(onlyRow(db.roomAttempt)).toMatchObject({
+      count: 6,
+      lastAttemptAt: NOW
+    })
+  })
+
+  test('counts an attempt that finished late without moving the last one back', async () => {
+    const { db, store } = spent()
+    const started = new Date(EARLIER.getTime() - 1000)
+
+    expect(await store.bump('global', before, started)).toBe(true)
+    expect(onlyRow(db.roomAttempt)).toMatchObject({
+      count: 6,
+      lastAttemptAt: EARLIER
+    })
+  })
+})

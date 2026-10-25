@@ -37,16 +37,27 @@ export const attemptStore = (adapter: DBAdapter): AttemptStore => {
   }
 
   const bump = async (key: string, after: Date, at: Date) => {
-    const bumped = await attempts.incrementOne({
+    const advanced = await attempts.incrementOne({
       where: [
         ...byKey(key),
-        { field: 'lastAttemptAt', operator: 'gt', value: after }
+        { field: 'lastAttemptAt', operator: 'gt', value: after },
+        { field: 'lastAttemptAt', operator: 'lte', value: at }
       ],
       increment: { count: 1 },
       set: { lastAttemptAt: at }
     })
 
-    return bumped !== null
+    if (advanced !== null) return true
+
+    const counted = await attempts.incrementOne({
+      where: [
+        ...byKey(key),
+        { field: 'lastAttemptAt', operator: 'gt', value: at }
+      ],
+      increment: { count: 1 }
+    })
+
+    return counted !== null
   }
 
   const prune = async (before: Date) => {
