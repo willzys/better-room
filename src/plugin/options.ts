@@ -84,6 +84,8 @@ export type RoomOptions = {
     readonly window?: number
     readonly perIp?: number
     readonly everyone?: number
+    readonly progressive?: boolean
+    readonly reserve?: boolean
   }
   readonly schema?: RoomSchemaOption
   readonly hooks?: RoomHooks
@@ -101,7 +103,7 @@ const GROUPS = {
   grant: ['lifetime'],
   creation: ['overHttp'],
   join: ['requireSession'],
-  attempts: ['window', 'perIp', 'everyone']
+  attempts: ['window', 'perIp', 'everyone', 'progressive', 'reserve']
 } as const satisfies {
   readonly [Group in keyof Grouped]: readonly (keyof Grouped[Group])[]
 }
@@ -138,7 +140,9 @@ const limitsOf = (attempts: Record<string, unknown>) => {
 
   return {
     perIp: { window, max: perIp },
-    everyone: { window, max: everyone }
+    everyone: { window, max: everyone },
+    progressive: flagOf(attempts.progressive, 'attempts progressive'),
+    reserve: flagOf(attempts.reserve, 'attempts reserve')
   }
 }
 

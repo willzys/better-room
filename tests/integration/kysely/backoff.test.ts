@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
+import { addressKey } from '../../helpers/crypto'
 import { codeOf, postRoute } from '../../helpers/http'
 import { sqliteFixture } from '../../helpers/sqlite'
 
@@ -22,6 +23,8 @@ const present = (
 ) => postRoute(auth(room), 'join', { code }, headers)
 
 const FROM = { 'x-forwarded-for': '203.0.113.7' }
+
+const ADDRESS = addressKey('203.0.113.7')
 
 const guessViaApi = (room?: RoomOptions, headers?: Record<string, string>) =>
   auth(room).api.joinRoom({
@@ -50,7 +53,7 @@ describe('the join backoff on the server side path', () => {
     expect(blocked.status).toBe(429)
     expect(await codeOf(blocked)).toBe('TOO_MANY_ATTEMPTS')
     expect(new Set(attempts().map(row => row.key))).toEqual(
-      new Set(['global', 'ip:203.0.113.7'])
+      new Set(['global', ADDRESS])
     )
   })
 
@@ -89,7 +92,7 @@ describe('the join backoff', () => {
 
     const counted = attempts()
 
-    expect(counted.map(row => row.key)).toEqual(['global', 'ip:203.0.113.7'])
+    expect(counted.map(row => row.key)).toEqual(['global', ADDRESS])
     expect(counted.every(row => row.count === 1)).toBe(true)
   })
 
@@ -107,9 +110,9 @@ describe('the join backoff', () => {
     expect(blocked.status).toBe(429)
     expect(await codeOf(blocked)).toBe('TOO_MANY_ATTEMPTS')
     expect(attempts()).toEqual(before)
-    expect(
-      Number(attempts().find(entry => entry.key === 'ip:203.0.113.7')?.count)
-    ).toBe(3)
+    expect(Number(attempts().find(entry => entry.key === ADDRESS)?.count)).toBe(
+      3
+    )
   })
 
   test('does not count a code that resolved', async () => {

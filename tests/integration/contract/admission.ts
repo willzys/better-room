@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 
 import { signedIn } from '../../helpers/auth'
+import { addressKey } from '../../helpers/crypto'
 import { codeOf, jarOf, joinedMember, onlyRow } from '../../helpers/http'
 import { departing, rows, join } from './harness'
 
@@ -94,7 +95,7 @@ export const backoffContract = ({ start }: Harness) => {
       expect((await guess()).status).toBe(400)
       const counted = await rows(auth, 'roomAttempt')
       expect(new Set(counted.map(row => row.key))).toEqual(
-        new Set(['global', 'ip:203.0.113.7'])
+        new Set(['global', addressKey('203.0.113.7')])
       )
       expect(counted.map(row => row.count)).toEqual([2, 2])
       const blocked = await guess()

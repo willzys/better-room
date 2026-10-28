@@ -5,7 +5,7 @@ const RECORD_ATTEMPTS = 3
 export type Attempt = {
   key: string
   count: number
-  lastAttemptAt: Date
+  startedAt: Date
 }
 
 export type AttemptLimit = {
@@ -21,12 +21,13 @@ export type AttemptStore = {
     unchangedSince: Date,
     at: Date
   ) => Promise<boolean>
-  readonly bump: (key: string, after: Date, at: Date) => Promise<boolean>
+  readonly bump: (key: string, after: Date) => Promise<boolean>
   readonly prune: (before: Date) => Promise<void>
+  readonly refund: (key: string, after: Date) => Promise<boolean>
 }
 
 const elapsed = (attempt: Attempt, limit: AttemptLimit, now: Date) =>
-  now.getTime() - attempt.lastAttemptAt.getTime() >= limit.window * 1000
+  now.getTime() - attempt.startedAt.getTime() >= limit.window * 1000
 
 const live = (attempt: Usable<Attempt>, limit: AttemptLimit, now: Date) =>
   attempt !== null && !elapsed(attempt, limit, now)
@@ -36,6 +37,24 @@ export const isExhausted = (
   limit: AttemptLimit,
   now: Date
 ) => live(attempt, limit, now) && (attempt?.count ?? 0) >= limit.max
+
+const PACE = { from: 2, ceiling: 30 } as const
+
+export const isPaced = (
+  attempt: Usable<Attempt>,
+  limit: AttemptLimit,
+  now: Date
+) => {
+  if (attempt === null || !live(attempt, limit, now)) return false
+  if (attempt.count < PACE.from) return false
+
+  const wait = Math.min(
+    2 ** Math.min(attempt.count - PACE.from, PACE.ceiling),
+    limit.window
+  )
+
+  return now.getTime() - attempt.startedAt.getTime() < wait * 1000
+}
 
 export const isBlocked = (
   counted: {
@@ -67,12 +86,12 @@ const recordOnce = async (
   if (existing === null) return store.open(request.key, request.now)
 
   if (!elapsed(existing, request.limit, request.now)) {
-    return store.bump(request.key, floorOf(request), request.now)
+    return store.bump(request.key, floorOf(request))
   }
 
   const restarted = await store.restart(
     request.key,
-    existing.lastAttemptAt,
+    existing.startedAt,
     request.now
   )
 

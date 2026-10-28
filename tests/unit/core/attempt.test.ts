@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { isBlocked, isExhausted, recordAttempt } from '@/core/attempt'
+import { isBlocked, isExhausted, isPaced, recordAttempt } from '@/core/attempt'
 
 import { NOW } from '../../helpers/fixtures'
 
@@ -14,7 +14,7 @@ const ago = (seconds: number) => new Date(NOW.getTime() - seconds * 1000)
 const attempt = (overrides: Partial<Attempt> = {}): Attempt => ({
   key: 'ip:1.2.3.4',
   count: 1,
-  lastAttemptAt: ago(1),
+  startedAt: ago(1),
   ...overrides
 })
 
@@ -58,7 +58,8 @@ const store = (seed: {
       calls.prune.push(before)
 
       return Promise.resolve()
-    }
+    },
+    refund: () => Promise.resolve(true)
   }
 
   return { instance, calls }
@@ -91,16 +92,16 @@ describe('isExhausted', () => {
   })
 
   test('forgives a count whose window has elapsed', () => {
-    const elapsed = attempt({ count: 9, lastAttemptAt: ago(60) })
-    const active = attempt({ count: 9, lastAttemptAt: ago(59) })
+    const elapsed = attempt({ count: 9, startedAt: ago(60) })
+    const active = attempt({ count: 9, startedAt: ago(59) })
     expect(isExhausted(elapsed, LIMIT, NOW)).toBe(false)
     expect(isExhausted(active, LIMIT, NOW)).toBe(true)
   })
 
-  test('keeps a sustained run exhausted, since each attempt refreshes the stamp', () => {
-    expect(
-      isExhausted(attempt({ count: 50, lastAttemptAt: NOW }), LIMIT, NOW)
-    ).toBe(true)
+  test('forgives a sustained run once the window it started has ended', () => {
+    const sustained = attempt({ count: 50, startedAt: ago(60) })
+
+    expect(isExhausted(sustained, LIMIT, NOW)).toBe(false)
   })
 })
 
@@ -122,7 +123,7 @@ describe('recordAttempt', () => {
   })
 
   test('restarts an elapsed window and prunes behind it', async () => {
-    const calls = await record({ rows: [attempt({ lastAttemptAt: ago(120) })] })
+    const calls = await record({ rows: [attempt({ startedAt: ago(120) })] })
 
     expect(calls.restart).toBe(1)
     expect(calls.bump).toBe(0)
@@ -138,7 +139,7 @@ describe('recordAttempt', () => {
 
   test('retries when another request restarted the window first', async () => {
     const calls = await record({
-      rows: [attempt({ lastAttemptAt: ago(120) }), attempt()],
+      rows: [attempt({ startedAt: ago(120) }), attempt()],
       restart: false
     })
 
@@ -152,7 +153,7 @@ describe('recordAttempt', () => {
     expect(calls.open).toBe(3)
   })
 
-  test('counts past the ceiling so a sustained run never rolls its window', async () => {
+  test('counts past the ceiling inside the window', async () => {
     const calls = await record({ rows: [attempt({ count: 99 })] })
 
     expect(calls.bump).toBe(1)
@@ -175,7 +176,7 @@ describe('recordAttempt losing a write', () => {
   })
 
   test('reports an attempt it could not restart', async () => {
-    const stale = attempt({ lastAttemptAt: ago(120) })
+    const stale = attempt({ startedAt: ago(120) })
 
     expect(await counted({ rows: [stale], restart: false })).toBe(false)
   })
@@ -183,7 +184,7 @@ describe('recordAttempt losing a write', () => {
   test.each([
     ['opened', { rows: [null] }],
     ['bumped', { rows: [attempt()] }],
-    ['restarted', { rows: [attempt({ lastAttemptAt: ago(120) })] }]
+    ['restarted', { rows: [attempt({ startedAt: ago(120) })] }]
   ])('reports the attempt it %s', async (_label, seed) => {
     expect(await counted(seed)).toBe(true)
   })
@@ -228,7 +229,7 @@ describe('isBlocked', () => {
   })
 
   test('forgives an address whose own record has gone stale', () => {
-    const stale = attempt({ count: 1, lastAttemptAt: ago(120) })
+    const stale = attempt({ count: 1, startedAt: ago(120) })
     expect(
       isBlocked(
         {
@@ -239,5 +240,24 @@ describe('isBlocked', () => {
         NOW
       )
     ).toBe(false)
+  })
+})
+
+describe('isPaced', () => {
+  const ROOMY = { max: 100, window: 60 }
+  const paced = (count: number, seconds: number) =>
+    isPaced(attempt({ count, startedAt: ago(seconds) }), ROOMY, NOW)
+
+  test('leaves the first failure of a window unpaced', () => {
+    expect(paced(1, 0)).toBe(false)
+  })
+
+  test('doubles the wait from the start of the window with each failure', () => {
+    expect(paced(4, 3)).toBe(true)
+    expect(paced(4, 4)).toBe(false)
+  })
+
+  test('never waits past the end of the window', () => {
+    expect(paced(90, 60)).toBe(false)
   })
 })

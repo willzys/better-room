@@ -8,6 +8,7 @@ import {
   roomStateRaceContract
 } from './contract/admission'
 import { pruningContract } from './contract/admission-pruning'
+import { reservationContract } from './contract/admission-reservation'
 import {
   occupancyContract,
   leaveContract,
@@ -49,6 +50,7 @@ export const contract = (harness: Harness) => {
   refusalContract(harness)
   rotationContract(harness)
   backoffContract(harness)
+  reservationContract(harness)
   pruningContract(harness)
   additionContract(harness)
   readmissionContract(harness)

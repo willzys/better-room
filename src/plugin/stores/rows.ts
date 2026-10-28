@@ -38,7 +38,10 @@ export type MemberRow = Nullable<
   Membership & { occupancy: number; releasedAt: Pending<Date> },
   'expiresAt' | 'leftAt' | 'revokedAt' | 'releasedAt'
 >
-export type AttemptRow = Attempt & { id: string }
+export type AttemptRow = Omit<Attempt, 'startedAt'> & {
+  id: string
+  lastAttemptAt: Date
+}
 export type UserRow = { id: string }
 
 export type ActorInput = Pick<Actor, 'userId'>
@@ -51,7 +54,7 @@ export type MemberInput = Pick<
   Membership,
   'roomId' | 'actorId' | 'role' | 'expiresAt' | 'leftAt'
 > & { occupancy: number }
-export type AttemptInput = Attempt
+export type AttemptInput = Omit<AttemptRow, 'id'>
 
 const corrupt = (model: string, id: string, field: string, value: string) =>
   new TypeError(`${model} ${id} holds an unknown ${field} '${value}'`)
@@ -109,7 +112,7 @@ export const toMembership = (row: MemberRow): Membership => ({
 export const toAttempt = (row: AttemptRow): Attempt => ({
   key: row.key,
   count: row.count,
-  lastAttemptAt: row.lastAttemptAt
+  startedAt: row.lastAttemptAt
 })
 
 export const found = <Row, Value>(

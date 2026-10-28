@@ -36,23 +36,11 @@ export const attemptStore = (adapter: DBAdapter): AttemptStore => {
     return restarted !== null
   }
 
-  const bump = async (key: string, after: Date, at: Date) => {
-    const advanced = await attempts.incrementOne({
-      where: [
-        ...byKey(key),
-        { field: 'lastAttemptAt', operator: 'gt', value: after },
-        { field: 'lastAttemptAt', operator: 'lte', value: at }
-      ],
-      increment: { count: 1 },
-      set: { lastAttemptAt: at }
-    })
-
-    if (advanced !== null) return true
-
+  const bump = async (key: string, after: Date) => {
     const counted = await attempts.incrementOne({
       where: [
         ...byKey(key),
-        { field: 'lastAttemptAt', operator: 'gt', value: at }
+        { field: 'lastAttemptAt', operator: 'gt', value: after }
       ],
       increment: { count: 1 }
     })
@@ -60,9 +48,22 @@ export const attemptStore = (adapter: DBAdapter): AttemptStore => {
     return counted !== null
   }
 
+  const refund = async (key: string, after: Date) => {
+    const refunded = await attempts.incrementOne({
+      where: [
+        ...byKey(key),
+        { field: 'lastAttemptAt', operator: 'gt', value: after },
+        { field: 'count', operator: 'gt', value: 0 }
+      ],
+      increment: { count: -1 }
+    })
+
+    return refunded !== null
+  }
+
   const prune = async (before: Date) => {
     await attempts.deleteMany([staleBefore(before)])
   }
 
-  return { read, open, restart, bump, prune }
+  return { read, open, restart, bump, prune, refund }
 }
