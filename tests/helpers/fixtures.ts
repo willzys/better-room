@@ -44,6 +44,7 @@ export const membership = (
   roomId: 'room-1',
   actorId: 'actor-1',
   role: 'participant',
+  displayName: null,
   joinedAt: EARLIER,
   expiresAt: null,
   leftAt: null,

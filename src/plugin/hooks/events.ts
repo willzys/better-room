@@ -1,6 +1,12 @@
 import type { MembershipReport, RoomReport } from '@/plugin/http/report'
 
-type MembershipType = 'joined' | 'added' | 'left' | 'revoked' | 'expired'
+type MembershipType =
+  | 'joined'
+  | 'added'
+  | 'renamed'
+  | 'left'
+  | 'revoked'
+  | 'expired'
 
 type MembershipChange = {
   readonly [T in MembershipType]: {
@@ -58,6 +64,7 @@ export type RoomHooks = {
 const EVENT_HOOKS = {
   joined: 'onJoined',
   added: 'onAdded',
+  renamed: 'onRenamed',
   left: 'onLeft',
   revoked: 'onRevoked',
   expired: 'onExpired',

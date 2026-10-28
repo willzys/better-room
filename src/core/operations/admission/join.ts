@@ -9,11 +9,11 @@ import type { Membership, MembershipRefusal } from '@/core/membership'
 import type { SeatingStore, Terms } from '@/core/operations/admission/seating'
 import type { Room, RoomRefusal } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
-import type { Absent, Unbounded, Usable } from '@/types/absence'
+import type { Absent, Unbounded, Unnamed, Usable } from '@/types/absence'
 
 const JOINABLE = ['active'] as const
 
-const KEPT: Terms = { role: 'participant', expiresAt: null }
+const KEPT: Terms = { role: 'participant', displayName: null, expiresAt: null }
 
 const JOIN_ATTEMPTS = 3
 
@@ -38,6 +38,7 @@ export type JoinRequest = {
   readonly codeIdentifiers: readonly string[]
   readonly actor: ActorSource
   readonly seatLifetime: Unbounded<number>
+  readonly displayName: Unnamed<string>
   readonly now: Date
 }
 
@@ -170,7 +171,7 @@ const entering = async (
 
   const actor = found ?? (await request.actor.create())
   const expiresAt = seatDeadline(actor, seatLifetime)
-  const terms = { ...KEPT, expiresAt }
+  const terms = { ...KEPT, displayName: request.displayName, expiresAt }
   const joining = { room, actor, terms, now, store }
 
   return seating(joining, JOIN_ATTEMPTS, found === null)

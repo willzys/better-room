@@ -22,7 +22,7 @@ import type { RoomStatus } from '@/core/room'
 import type { MemberRow } from '@/plugin/stores/rows'
 import type { Changes } from '@/plugin/stores/table'
 import type { Clause } from '@/plugin/stores/where'
-import type { Unbounded } from '@/types/absence'
+import type { Unbounded, Unnamed } from '@/types/absence'
 
 const taking = (adapter: DBAdapter) => {
   const members = memberTable(adapter)
@@ -75,6 +75,7 @@ export const seatingStore = (adapter: DBAdapter): SeatingStore => {
         roomId: member.roomId,
         actorId: member.actorId,
         role: member.role,
+        displayName: member.displayName,
         expiresAt: member.expiresAt,
         leftAt: new Date(),
         occupancy: 0
@@ -90,14 +91,17 @@ export const seatingStore = (adapter: DBAdapter): SeatingStore => {
   const occupy = (membershipId: string, terms: Terms) =>
     take(membershipId, [...SEATABLE, UNRELEASED], {
       role: terms.role,
+      displayName: terms.displayName,
       expiresAt: terms.expiresAt
     })
 
-  const reinstate = (membershipId: string) => take(membershipId, SEATABLE, {})
+  const reinstate = (membershipId: string, displayName: Unnamed<string>) =>
+    take(membershipId, SEATABLE, displayName === null ? {} : { displayName })
 
   const readmit = (membershipId: string, terms: Terms) =>
     take(membershipId, SEATABLE, {
       role: terms.role,
+      displayName: terms.displayName,
       expiresAt: terms.expiresAt
     })
 

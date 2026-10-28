@@ -9,6 +9,7 @@ const membershipReport = z.strictObject({
   roomId: z.string().min(1),
   actorId: z.string().min(1),
   role: z.string(),
+  displayName: z.string().nullable(),
   joinedAt: z.string(),
   expiresAt: z.string().nullable(),
   leftAt: z.string().nullable(),

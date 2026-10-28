@@ -15,6 +15,7 @@ describe('join seating an actor', () => {
         codeIdentifiers: ['identifier'],
         actor: actors,
         seatLifetime: null,
+        displayName: null,
         now: NOW
       },
       {

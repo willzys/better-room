@@ -105,6 +105,7 @@ describe('betterRoom accepting a usable code', () => {
         'joinRoom',
         'leaveRoom',
         'listRoomMemberships',
+        'renameRoomMember',
         'promoteRoomActor',
         'rotateRoomCode'
       ])

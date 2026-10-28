@@ -36,7 +36,7 @@ export type CodeRow = Nullable<
 >
 export type MemberRow = Nullable<
   Membership & { occupancy: number; releasedAt: Pending<Date> },
-  'expiresAt' | 'leftAt' | 'revokedAt' | 'releasedAt'
+  'expiresAt' | 'leftAt' | 'revokedAt' | 'releasedAt' | 'displayName'
 >
 export type AttemptRow = Omit<Attempt, 'startedAt'> & {
   id: string
@@ -52,7 +52,7 @@ export type CodeInput = Pick<
 >
 export type MemberInput = Pick<
   Membership,
-  'roomId' | 'actorId' | 'role' | 'expiresAt' | 'leftAt'
+  'roomId' | 'actorId' | 'role' | 'displayName' | 'expiresAt' | 'leftAt'
 > & { occupancy: number }
 export type AttemptInput = Omit<AttemptRow, 'id'>
 
@@ -103,6 +103,7 @@ export const toMembership = (row: MemberRow): Membership => ({
   roomId: row.roomId,
   actorId: row.actorId,
   role: row.role,
+  displayName: row.displayName ?? null,
   joinedAt: row.joinedAt,
   expiresAt: row.expiresAt ?? null,
   leftAt: row.leftAt ?? null,

@@ -16,6 +16,7 @@ import {
 import { addressOf } from '@/plugin/http/address'
 import { actorSource, issueGrant } from '@/plugin/http/carrier'
 import { disclosed } from '@/plugin/http/concealment'
+import { displayNameField } from '@/plugin/http/display-name'
 import { membershipReport } from '@/plugin/http/report'
 import { attemptStore } from '@/plugin/stores/admission/attempt'
 import { joinStore } from '@/plugin/stores/admission/join'
@@ -36,7 +37,10 @@ const joinBody = z.object({
   code: z
     .string()
     .max(CODE.maxInput)
-    .meta({ description: 'The room code being presented' })
+    .meta({ description: 'The room code being presented' }),
+  name: displayNameField
+    .optional()
+    .meta({ description: 'The name shown for the caller in this room' })
 })
 
 type JoinDeps = AttemptBudgets & {
@@ -129,6 +133,7 @@ export const joinEndpoint = (deps: JoinDeps) =>
         {
           codeIdentifiers: [identifiers.current, identifiers.legacy],
           seatLifetime: seatLifetimeOf(deps),
+          displayName: ctx.body.name ?? null,
           now,
           actor: actorSource(
             ctx,

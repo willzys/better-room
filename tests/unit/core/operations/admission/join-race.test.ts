@@ -56,6 +56,7 @@ describe('join returning a seat it could not use', () => {
           codeIdentifiers: ['identifier'],
           actor: actors,
           seatLifetime: null,
+          displayName: null,
           now: NOW
         },
         { ...instance, enroll: () => Promise.reject(failure) }
@@ -101,6 +102,7 @@ describe('join racing what removes its membership', () => {
         codeIdentifiers: ['identifier'],
         actor: actors,
         seatLifetime: null,
+        displayName: null,
         now: NOW
       },
       {
@@ -126,6 +128,7 @@ describe('join racing what removes its membership', () => {
         codeIdentifiers: ['identifier'],
         actor: actors,
         seatLifetime: null,
+        displayName: null,
         now: NOW
       },
       { ...instance, room: () => Promise.resolve(reads.shift() ?? null) }
@@ -146,6 +149,7 @@ describe('join answering after the gate turned it down', () => {
         codeIdentifiers: ['identifier'],
         actor: actors,
         seatLifetime: null,
+        displayName: null,
         now: NOW
       },
       {

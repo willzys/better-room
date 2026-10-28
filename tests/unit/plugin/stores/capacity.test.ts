@@ -85,7 +85,9 @@ describe('a departure interleaved with a rejoin', () => {
     expect(
       await releaseStore(adapter).endOccupancy('member-1', NOW, 'left')
     ).toBe(true)
-    const rejoined = seatOf(await joinStore(adapter).reinstate('member-1'))
+    const rejoined = seatOf(
+      await joinStore(adapter).reinstate('member-1', null)
+    )
 
     expect(rejoined.occupied).toBe(true)
     expect(invariant(onlyRow(db.roomMember))).toBe(true)
@@ -98,7 +100,9 @@ describe('a departure interleaved with a rejoin', () => {
     db.roomMember.push(occupied())
     const adapter = adapterFor(db)
 
-    const rejoined = seatOf(await joinStore(adapter).reinstate('member-1'))
+    const rejoined = seatOf(
+      await joinStore(adapter).reinstate('member-1', null)
+    )
     expect(rejoined.occupied).toBe(false)
 
     expect(
@@ -117,9 +121,9 @@ describe('a departure interleaved with a rejoin', () => {
 
     await Promise.all([
       releaseStore(adapter).endOccupancy('member-1', NOW, 'left'),
-      joinStore(adapter).reinstate('member-1'),
+      joinStore(adapter).reinstate('member-1', null),
       releaseStore(adapter).endOccupancy('member-1', NOW, 'left'),
-      joinStore(adapter).reinstate('member-1')
+      joinStore(adapter).reinstate('member-1', null)
     ])
 
     const row = onlyRow(db.roomMember)

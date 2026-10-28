@@ -113,6 +113,7 @@ const memberTable = () =>
         defaultValue: 'participant',
         sortable: true
       },
+      displayName: { type: 'string', required: false },
       joinedAt: timestamp(),
       expiresAt: { type: 'date', required: false },
       leftAt: { type: 'date', required: false },

@@ -229,6 +229,7 @@ describe('join enrolling a new member', () => {
         codeIdentifiers: ['identifier'],
         actor: actors,
         seatLifetime: null,
+        displayName: null,
         now: NOW
       },
       {

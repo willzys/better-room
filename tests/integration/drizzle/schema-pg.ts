@@ -103,6 +103,7 @@ export const roomMember = pgTable(
       .notNull()
       .references(() => roomActor.id, { onDelete: 'restrict' }),
     role: text('role').notNull(),
+    displayName: text('displayName'),
     joinedAt: timestamp('joinedAt', { withTimezone: true }).notNull(),
     expiresAt: timestamp('expiresAt', { withTimezone: true }),
     leftAt: timestamp('leftAt', { withTimezone: true }),

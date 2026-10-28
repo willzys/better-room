@@ -100,6 +100,7 @@ export const roomMember = sqliteTable(
       .notNull()
       .references(() => roomActor.id, { onDelete: 'restrict' }),
     role: text('role').notNull(),
+    displayName: text('displayName'),
     joinedAt: stamp('joinedAt').notNull(),
     expiresAt: stamp('expiresAt'),
     leftAt: stamp('leftAt'),

@@ -10,7 +10,8 @@ export const betterRoomClient = () =>
       '/better-room/create': 'POST',
       '/better-room/join': 'POST',
       '/better-room/leave': 'POST',
-      '/better-room/promote': 'POST'
+      '/better-room/promote': 'POST',
+      '/better-room/rename': 'POST'
     }
   }) satisfies BetterAuthClientPlugin
 

@@ -4,7 +4,13 @@ import type { Reconciliation } from '@/core/operations/capacity/reconciliation'
 import type { Promoted } from '@/core/operations/identity/promotion'
 import type { Occupied } from '@/core/operations/reads/occupancy'
 import type { Room, RoomStatus } from '@/core/room'
-import type { Pending, Perpetual, Unbounded, Unlinked } from '@/types/absence'
+import type {
+  Pending,
+  Perpetual,
+  Unbounded,
+  Unlinked,
+  Unnamed
+} from '@/types/absence'
 
 export type RoomReport = {
   readonly id: string
@@ -37,6 +43,7 @@ export type MembershipReport = {
   readonly roomId: string
   readonly actorId: string
   readonly role: string
+  readonly displayName: Unnamed<string>
   readonly joinedAt: Date
   readonly expiresAt: Perpetual<Date>
   readonly leftAt: Pending<Date>
@@ -66,6 +73,7 @@ export const membershipReport = (membership: Membership): MembershipReport => ({
   roomId: membership.roomId,
   actorId: membership.actorId,
   role: membership.role,
+  displayName: membership.displayName,
   joinedAt: membership.joinedAt,
   expiresAt: membership.expiresAt,
   leftAt: membership.leftAt,
