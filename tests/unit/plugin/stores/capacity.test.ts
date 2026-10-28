@@ -2,9 +2,9 @@ import { describe, expect, test } from 'bun:test'
 
 import { joinStore } from '@/plugin/stores/admission/join'
 import { reconciliationStore } from '@/plugin/stores/capacity/reconciliation'
-import { releaseStore } from '@/plugin/stores/capacity/release'
+import { reclaimStore, releaseStore } from '@/plugin/stores/capacity/release'
 
-import { EARLIER, NOW } from '../../../helpers/fixtures'
+import { EARLIER, LATER, NOW } from '../../../helpers/fixtures'
 import { onlyRow } from '../../../helpers/http'
 import { empty } from '../../../helpers/memory'
 import { adapterFor, occupied, seated, seatOf } from '../../../helpers/stores'
@@ -132,7 +132,7 @@ const owingOfEveryKind = () => {
   const db = empty()
   db.roomMember.push(
     occupied({ id: 'expired', actorId: 'actor-1', expiresAt: EARLIER }),
-    occupied({ id: 'left', actorId: 'actor-2', leftAt: EARLIER }),
+    occupied({ id: 'perpetual', actorId: 'actor-2' }),
     occupied({ id: 'revoked', actorId: 'actor-3', revokedAt: EARLIER })
   )
 
@@ -140,15 +140,48 @@ const owingOfEveryKind = () => {
 }
 
 describe('reading the seats reconciliation owes', () => {
-  test('gathers every kind of seat still owed', async () => {
+  test('gathers every kind of seat still owed and no seat still held', async () => {
     const owing = await owingOfEveryKind().owing(NOW, 10)
 
     expect(new Set(owing.map(membership => membership.id))).toEqual(
-      new Set(['expired', 'left', 'revoked'])
+      new Set(['expired', 'revoked'])
     )
   })
 
   test('never hands back more than one batch across the kinds', async () => {
     expect(await owingOfEveryKind().owing(NOW, 2)).toHaveLength(2)
+  })
+})
+
+describe('returning a seat reconciliation owes', () => {
+  test.each([
+    ['expired', { expiresAt: EARLIER }],
+    ['revoked', { revokedAt: EARLIER }]
+  ])('claims a membership still %s', async (_label, state) => {
+    const db = empty()
+    seated(db, 1)
+    db.roomMember.push(occupied(state))
+
+    const reclaimed = await reclaimStore(adapterFor(db)).reclaim(
+      'member-1',
+      NOW
+    )
+
+    expect(reclaimed?.id).toBe('member-1')
+    expect(onlyRow(db.roomMember).occupancy).toBe(0)
+  })
+
+  test.each([
+    ['no deadline', { expiresAt: null }],
+    ['a deadline ahead', { expiresAt: LATER }]
+  ])('refuses a membership readmitted with %s', async (_label, state) => {
+    const db = empty()
+    seated(db, 1)
+    db.roomMember.push(occupied(state))
+
+    expect(await reclaimStore(adapterFor(db)).reclaim('member-1', NOW)).toBe(
+      null
+    )
+    expect(onlyRow(db.roomMember).occupancy).toBe(1)
   })
 })

@@ -7,12 +7,14 @@ import { minter } from '@/plugin/codes/mint'
 import {
   creationError,
   creationIsServerOnlyError,
-  creationNeedsASessionError
+  creationNeedsASessionError,
+  unknownUserError
 } from '@/plugin/errors/refusals'
 import { isServerCall } from '@/plugin/http/carrier'
 import { roomReport } from '@/plugin/http/report'
-import { MAX_STORED_INTEGER } from '@/plugin/schema/tables'
+import { LATEST_STORED_DATE, MAX_STORED_INTEGER } from '@/plugin/schema/tables'
 import { actorStore } from '@/plugin/stores/identity/actor'
+import { userLookup } from '@/plugin/stores/lookups'
 import { creationStore } from '@/plugin/stores/rooms/creation'
 
 import type { GenericEndpointContext } from '@better-auth/core'
@@ -36,6 +38,7 @@ const createBody = z.object({
     .meta({ description: 'The seats the room admits, unbounded when absent' }),
   expiresAt: z.coerce
     .date()
+    .max(LATEST_STORED_DATE)
     .optional()
     .meta({ description: 'When the room expires, never when absent' })
 })
@@ -52,7 +55,15 @@ const creatorOf = async (
   requested: Unlinked<string>,
   overHttp: boolean
 ): Promise<Unlinked<string>> => {
-  if (isServerCall(ctx)) return requested
+  if (isServerCall(ctx)) {
+    if (requested === null) return null
+
+    const known = await userLookup(ctx.context.adapter)(requested)
+
+    if (!known) throw unknownUserError()
+
+    return requested
+  }
   if (!overHttp) throw creationIsServerOnlyError()
 
   const session = await getSessionFromCtx(ctx)
@@ -77,12 +88,12 @@ export const createEndpoint = (deps: CreateDeps) =>
         deps.overHttp
       )
 
-      const createdBy =
-        creator === null ? null : await actorIdOf(creator, actorStore(adapter))
-
       const created = await createRoom(
         {
-          createdBy,
+          createdBy: async () =>
+            creator === null
+              ? null
+              : await actorIdOf(creator, actorStore(adapter)),
           maxMembers: ctx.body.maxMembers ?? null,
           expiresAt: ctx.body.expiresAt ?? null,
           mint: minter(deps.format, deps.identify(secret)),

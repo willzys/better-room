@@ -16,7 +16,7 @@ export type CreationStore = CodeIssuer & {
 }
 
 export type CreationRequest = {
-  readonly createdBy: Unlinked<string>
+  readonly createdBy: () => Promise<Unlinked<string>>
   readonly maxMembers: Unbounded<number>
   readonly expiresAt: Perpetual<Date>
   readonly mint: Mint
@@ -57,7 +57,7 @@ export const createRoom = async (
   }
 
   const room = await store.openRoom({
-    createdBy: request.createdBy,
+    createdBy: await request.createdBy(),
     maxMembers: request.maxMembers,
     expiresAt: request.expiresAt
   })

@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 
 import { attemptStore } from '@/plugin/stores/admission/attempt'
+import { pruningStore } from '@/plugin/stores/admission/pruning'
 
 import { EARLIER, NOW } from '../../../helpers/fixtures'
 import { onlyRow } from '../../../helpers/http'
@@ -54,5 +55,44 @@ describe('restarting an attempt budget whose window elapsed', () => {
       count: 5,
       lastAttemptAt: EARLIER
     })
+  })
+})
+
+describe('counting an attempt inside its window', () => {
+  const before = new Date(EARLIER.getTime() - 60_000)
+
+  test('moves the last attempt forward to a later one', async () => {
+    const { db, store } = spent()
+
+    expect(await store.bump('global', before, NOW)).toBe(true)
+    expect(onlyRow(db.roomAttempt)).toMatchObject({
+      count: 6,
+      lastAttemptAt: NOW
+    })
+  })
+
+  test('counts an attempt that finished late without moving the last one back', async () => {
+    const { db, store } = spent()
+    const started = new Date(EARLIER.getTime() - 1000)
+
+    expect(await store.bump('global', before, started)).toBe(true)
+    expect(onlyRow(db.roomAttempt)).toMatchObject({
+      count: 6,
+      lastAttemptAt: EARLIER
+    })
+  })
+})
+
+describe('pruning attempt budgets', () => {
+  test('keeps a budget that came back to life after it was read', async () => {
+    const { db } = spent()
+    const store = pruningStore(adapterFor(db))
+
+    const keys = await store.expired(NOW, 10)
+    db.roomAttempt[0] = { ...onlyRow(db.roomAttempt), lastAttemptAt: NOW }
+
+    expect(keys).toEqual(['global'])
+    expect(await store.discard(keys, NOW)).toBe(0)
+    expect(db.roomAttempt).toHaveLength(1)
   })
 })

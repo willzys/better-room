@@ -76,7 +76,7 @@ type Reporter = {
   readonly error: (message: string, ...details: unknown[]) => void
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
+export const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 export const assertRoomHooks: (
@@ -109,7 +109,7 @@ export const signalling =
     if (hook === undefined) return
 
     try {
-      await hook(event)
+      await hook(structuredClone(event))
     } catch (error) {
       logger.error(
         `better-room could not deliver a ${event.type} event; the change itself was saved`,

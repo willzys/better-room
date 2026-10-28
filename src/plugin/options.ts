@@ -1,4 +1,4 @@
-import { assertRoomHooks, signalling } from '@/plugin/hooks/events'
+import { assertRoomHooks, isObject, signalling } from '@/plugin/hooks/events'
 import { MAX_STORED_INTEGER } from '@/plugin/schema/tables'
 import {
   CODE_FORMAT_NAMES,
@@ -47,10 +47,14 @@ const BOUNDS = {
   }
 } as const satisfies Record<string, Bound>
 
-const boundedInteger = (value: number | undefined, bound: Bound) => {
-  const resolved = value ?? bound.fallback
+const boundedInteger = (value: unknown, bound: Bound) => {
+  const resolved = value === undefined ? bound.fallback : value
 
-  if (!Number.isInteger(resolved) || resolved < 1) {
+  if (
+    typeof resolved !== 'number' ||
+    !Number.isInteger(resolved) ||
+    resolved < 1
+  ) {
     throw new RangeError(
       `${bound.name} must be a positive integer of ${bound.unit}`
     )
@@ -89,31 +93,41 @@ export type RoomOptions = {
   readonly hooks?: RoomHooks
 }
 
-const limitsOf = (attempts: RoomOptions['attempts']) => {
-  const window = boundedInteger(attempts?.window, BOUNDS.attemptWindow)
+const groupOf = (value: unknown, name: string): Record<string, unknown> => {
+  if (value === undefined) return {}
+  if (!isObject(value)) throw new TypeError(`${name} must be an object`)
+
+  return value
+}
+
+const limitsOf = (attempts: Record<string, unknown>) => {
+  const window = boundedInteger(attempts.window, BOUNDS.attemptWindow)
 
   return {
     perIp: {
       window,
-      max: boundedInteger(attempts?.perIp, BOUNDS.attemptsPerIp)
+      max: boundedInteger(attempts.perIp, BOUNDS.attemptsPerIp)
     },
     everyone: {
       window,
-      max: boundedInteger(attempts?.everyone, BOUNDS.attemptsForEveryone)
+      max: boundedInteger(attempts.everyone, BOUNDS.attemptsForEveryone)
     }
   }
 }
 
-const formatOf = (code: RoomOptions['code']) => {
-  const name: unknown = code?.format ?? 'crockford'
+const formatOf = (code: Record<string, unknown>) => {
+  const name = code.format === undefined ? 'crockford' : code.format
 
   if (!isCodeFormatName(name)) {
     throw new TypeError(
       `code format must be one of ${CODE_FORMAT_NAMES.join(', ')}`
     )
   }
+  if (code.length !== undefined && typeof code.length !== 'number') {
+    throw new TypeError('room code length must be a number')
+  }
 
-  return codeFormat(name, code?.length)
+  return codeFormat(name, code.length)
 }
 
 const flagOf = (value: unknown, name: string) => {
@@ -139,16 +153,26 @@ const signalOf = (options?: RoomOptions) => {
   return signalling(hooks)
 }
 
-const flagsOf = (options?: RoomOptions) => ({
-  overHttp: flagOf(options?.creation?.overHttp, 'creation over http'),
-  requireSession: flagOf(options?.join?.requireSession, 'join require session')
-})
+export const settingsOf = (options?: RoomOptions) => {
+  const given = groupOf(options, 'better-room options')
+  const code = groupOf(given.code, 'code')
 
-export const settingsOf = (options?: RoomOptions) => ({
-  format: formatOf(options?.code),
-  grace: boundedInteger(options?.code?.grace, BOUNDS.grace),
-  grantLifetime: boundedInteger(options?.grant?.lifetime, BOUNDS.grantLifetime),
-  ...flagsOf(options),
-  signal: signalOf(options),
-  ...limitsOf(options?.attempts)
-})
+  return {
+    format: formatOf(code),
+    grace: boundedInteger(code.grace, BOUNDS.grace),
+    grantLifetime: boundedInteger(
+      groupOf(given.grant, 'grant').lifetime,
+      BOUNDS.grantLifetime
+    ),
+    overHttp: flagOf(
+      groupOf(given.creation, 'creation').overHttp,
+      'creation over http'
+    ),
+    requireSession: flagOf(
+      groupOf(given.join, 'join').requireSession,
+      'join require session'
+    ),
+    signal: signalOf(options),
+    ...limitsOf(groupOf(given.attempts, 'attempts'))
+  }
+}

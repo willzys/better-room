@@ -28,6 +28,13 @@ export const membershipLookup = (adapter: DBAdapter) => {
     found(await members.findOne(pairing(roomId, actorId)), toMembership)
 }
 
+export const userLookup = (adapter: DBAdapter) => {
+  const users = userTable(adapter)
+
+  return async (id: string): Promise<boolean> =>
+    (await users.findOne(byId(id))) !== null
+}
+
 export const survivalLookup = (adapter: DBAdapter) => {
   const actors = actorTable(adapter)
   const users = userTable(adapter)

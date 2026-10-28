@@ -83,12 +83,15 @@ const turnedAway = async (joining: Joining): Promise<JoinOutcome> => {
     joining.store.room(joining.room.id),
     joining.store.membership(joining.room.id, joining.actor.id)
   ])
-  const settled = membership === null ? null : settledBy(joining, membership)
-
-  if (settled !== null) return settled
   if (room === null) return refuse('unresolved')
 
-  return refuse(roomRefusal(room, joining.now) ?? 'at-capacity')
+  const refusal = roomRefusal(room, joining.now)
+
+  if (refusal !== null) return refuse(refusal)
+
+  const settled = membership === null ? null : settledBy(joining, membership)
+
+  return settled ?? refuse('at-capacity')
 }
 
 const seated = async (

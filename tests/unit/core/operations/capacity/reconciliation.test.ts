@@ -6,13 +6,18 @@ import { EARLIER, LATER, NOW, membership } from '../../../../helpers/fixtures'
 
 import type { Membership } from '@/core/membership'
 import type { ReconciliationStore } from '@/core/operations/capacity/reconciliation'
+import type { Usable } from '@/types/absence'
 
 const store = (
   owing: Membership[],
-  claimed: (id: string) => boolean = () => true
+  claimed: (held: Membership) => Usable<Membership> = held => held
 ): ReconciliationStore => ({
   owing: () => Promise.resolve(owing),
-  endOccupancy: id => Promise.resolve(claimed(id)),
+  reclaim: id => {
+    const held = owing.find(row => row.id === id)
+
+    return Promise.resolve(held === undefined ? null : claimed(held))
+  },
   lowerCount: () => Promise.resolve()
 })
 
@@ -44,10 +49,22 @@ describe('reconcile', () => {
 
     const reconciled = await reconcile(
       { now: NOW, batch: 10 },
-      store(owing, id => id === 'taken')
+      store(owing, held => (held.id === 'taken' ? held : null))
     )
 
     expect(reconciled.released).toBe(1)
     expect(reconciled.lapsed.map(lapsed => lapsed.id)).toEqual(['taken'])
+  })
+
+  test('names a membership as the claim found it, not as it was read', async () => {
+    const owing = [membership({ id: 'readmitted', expiresAt: EARLIER })]
+    const readmitted = membership({ id: 'readmitted', expiresAt: NOW })
+
+    const reconciled = await reconcile(
+      { now: NOW, batch: 10 },
+      store(owing, () => readmitted)
+    )
+
+    expect(reconciled.lapsed).toEqual([readmitted])
   })
 })

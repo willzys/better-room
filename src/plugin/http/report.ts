@@ -1,4 +1,5 @@
 import type { Membership } from '@/core/membership'
+import type { Pruning } from '@/core/operations/admission/pruning'
 import type { Reconciliation } from '@/core/operations/capacity/reconciliation'
 import type { Promoted } from '@/core/operations/identity/promotion'
 import type { Occupied } from '@/core/operations/reads/occupancy'
@@ -24,6 +25,11 @@ export type OccupancyReport = {
 export type ReconciliationReport = {
   readonly owing: number
   readonly released: number
+}
+
+export type PruningReport = {
+  readonly pruned: number
+  readonly complete: boolean
 }
 
 export type MembershipReport = {
@@ -85,4 +91,9 @@ export const promotionReport = (outcome: Promoted): PromotionReport => ({
   carried: outcome.carried,
   discarded: outcome.discarded,
   complete: outcome.complete
+})
+
+export const pruningReport = (pruning: Pruning): PruningReport => ({
+  pruned: pruning.pruned,
+  complete: pruning.complete
 })

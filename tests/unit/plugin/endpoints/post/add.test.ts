@@ -54,3 +54,27 @@ describe('naming the member to add', () => {
     expect(db.roomMember).toHaveLength(0)
   })
 })
+
+describe('bounding the deadline of a member', () => {
+  test('refuses a deadline no supported database orders correctly', async () => {
+    const { db, userId, add } = await scenario()
+
+    const response = await add({ userId, expiresAt: '+010000-01-01T00:00:00Z' })
+
+    expect(response.status).toBe(400)
+    expect(await codeOf(response)).toBe('VALIDATION_ERROR')
+    expect(db.roomMember).toHaveLength(0)
+  })
+
+  test('admits the last instant every supported database stores', async () => {
+    const { db, userId, add } = await scenario()
+
+    const response = await add({
+      userId,
+      expiresAt: '9999-12-31T23:59:59.999Z'
+    })
+
+    expect(response.status).toBe(200)
+    expect(db.roomMember).toHaveLength(1)
+  })
+})
