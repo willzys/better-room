@@ -152,9 +152,7 @@ describe('backoff address isolation', () => {
 
   test('applies the global ceiling to an address that has failed before', async () => {
     await seed()
-    const room: RoomOptions = {
-      attempts: { everyone: 3, perIp: 99, window: 60 }
-    }
+    const room: RoomOptions = { attempts: { everyone: 3, window: 60 } }
     const other = { 'x-forwarded-for': '198.51.100.9' }
 
     await guess(room, other)

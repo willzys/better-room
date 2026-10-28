@@ -119,3 +119,11 @@ export const signalling =
   }
 
 export type Signal = ReturnType<typeof signalling>
+
+export const signalOf = (hooks: unknown) => {
+  if (hooks === undefined) return signalling()
+
+  assertRoomHooks(hooks)
+
+  return signalling(hooks)
+}

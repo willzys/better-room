@@ -103,7 +103,7 @@ export const backoffContract = ({ start }: Harness) => {
       expect(await rows(auth, 'roomAttempt')).toEqual(counted)
     })
     test('keeps a fresh address admissible when a sweep spends the global budget', async () => {
-      const auth = await start({ attempts: { everyone: 1, perIp: 10 } })
+      const auth = await start({ attempts: { everyone: 1 } })
       const created = await auth.api.createRoom({ body: {} })
       const request = (code: string, ip: string) =>
         auth.api.joinRoom({
