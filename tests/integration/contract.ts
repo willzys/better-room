@@ -36,6 +36,7 @@ import {
   listingPagesContract,
   occupancyReadContract
 } from './contract/reads'
+import { membersContract } from './contract/reads-members'
 import { lifecycleContract } from './contract/rooms'
 import { schemaContract, uniquenessContract } from './contract/schema'
 import { trafficContract } from './contract/traffic'
@@ -61,6 +62,7 @@ export const contract = (harness: Harness) => {
   membershipsContract(harness)
   membershipsRefusalContract(harness)
   listingPagesContract(harness)
+  membersContract(harness)
   occupancyContract(harness)
   leaveContract(harness)
   occupancyReadContract(harness)

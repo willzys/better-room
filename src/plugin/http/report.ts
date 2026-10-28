@@ -2,6 +2,7 @@ import type { Membership } from '@/core/membership'
 import type { Pruning } from '@/core/operations/admission/pruning'
 import type { Reconciliation } from '@/core/operations/capacity/reconciliation'
 import type { Promoted } from '@/core/operations/identity/promotion'
+import type { Member } from '@/core/operations/reads/members'
 import type { Occupied } from '@/core/operations/reads/occupancy'
 import type { Room, RoomStatus } from '@/core/room'
 import type {
@@ -48,6 +49,12 @@ export type MembershipReport = {
   readonly expiresAt: Perpetual<Date>
   readonly leftAt: Pending<Date>
   readonly revokedAt: Pending<Date>
+}
+
+export type MemberReport = {
+  readonly membership: MembershipReport
+  readonly name: Unnamed<string>
+  readonly anonymous: boolean
 }
 
 export type PromotionReport = {
@@ -104,4 +111,10 @@ export const promotionReport = (outcome: Promoted): PromotionReport => ({
 export const pruningReport = (pruning: Pruning): PruningReport => ({
   pruned: pruning.pruned,
   complete: pruning.complete
+})
+
+export const memberReport = (member: Member): MemberReport => ({
+  membership: membershipReport(member.membership),
+  name: member.name,
+  anonymous: member.anonymous
 })

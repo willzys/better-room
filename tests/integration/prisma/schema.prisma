@@ -102,6 +102,7 @@ model RoomMember {
 
   @@unique([roomId, actorId], map: "room_member_room_actor_uidx")
   @@index([expiresAt])
+  @@index([revokedAt])
   @@map("roomMember")
 }
 

@@ -14,6 +14,7 @@ export type { Held } from '@/core/operations/reads/memberships'
 export type { Room, RoomStatus } from '@/core/room'
 export type { RoomCode, RoomCodeStatus } from '@/core/room-code'
 export type {
+  MemberReport,
   MembershipReport,
   OccupancyReport,
   PromotionReport,

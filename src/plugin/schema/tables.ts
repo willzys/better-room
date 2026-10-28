@@ -41,6 +41,11 @@ const counter = (initial: number) =>
     input: false
   }) satisfies DBFieldAttribute
 
+const indexOn = <Field extends string>(field: Field, name: string) => ({
+  fields: [field] as const,
+  name
+})
+
 const derived = () =>
   ({ type: 'string', required: true, input: false }) satisfies DBFieldAttribute
 
@@ -67,12 +72,7 @@ const roomTable = () =>
       createdBy: reference('roomActor', 'set null', false),
       createdAt: timestamp()
     },
-    indexes: [
-      {
-        fields: ['createdBy'] as const,
-        name: 'room_created_by_idx'
-      }
-    ]
+    indexes: [indexOn('createdBy', 'room_created_by_idx')]
   }) satisfies RoomTable
 
 const codeTable = () =>
@@ -127,14 +127,9 @@ const memberTable = () =>
         unique: true,
         name: 'room_member_room_actor_uidx'
       },
-      {
-        fields: ['actorId'] as const,
-        name: 'room_member_actor_idx'
-      },
-      {
-        fields: ['expiresAt'] as const,
-        name: 'room_member_expires_at_idx'
-      }
+      indexOn('actorId', 'room_member_actor_idx'),
+      indexOn('expiresAt', 'room_member_expires_at_idx'),
+      indexOn('revokedAt', 'room_member_revoked_at_idx')
     ]
   }) satisfies RoomTable
 
@@ -158,10 +153,7 @@ const attemptTable = () =>
         unique: true,
         name: 'room_attempt_key_uidx'
       },
-      {
-        fields: ['lastAttemptAt'] as const,
-        name: 'room_attempt_last_attempt_at_idx'
-      }
+      indexOn('lastAttemptAt', 'room_attempt_last_attempt_at_idx')
     ]
   }) satisfies RoomTable
 

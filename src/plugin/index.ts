@@ -1,4 +1,5 @@
 import { accessEndpoint } from '@/plugin/endpoints/get/access'
+import { membersEndpoint } from '@/plugin/endpoints/get/members'
 import { membershipsEndpoint } from '@/plugin/endpoints/get/memberships'
 import { occupancyEndpoint } from '@/plugin/endpoints/get/occupancy'
 import { addEndpoint } from '@/plugin/endpoints/post/add'
@@ -78,6 +79,7 @@ export const betterRoom = (options?: RoomOptions) => {
       leaveRoom: leaveEndpoint(signal),
       renameRoomMember: renameEndpoint(signal),
       listRoomMemberships: membershipsEndpoint(),
+      listRoomMembers: membersEndpoint(),
       promoteRoomActor: promoteEndpoint(signal),
       rotateRoomCode: rotateEndpoint({ format, identify, grace, signal }),
       revokeRoomMember: revokeEndpoint(signal),
