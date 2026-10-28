@@ -15,6 +15,7 @@ import {
 } from '@/plugin/errors/refusals'
 import { addressOf } from '@/plugin/http/address'
 import { actorSource, issueGrant } from '@/plugin/http/carrier'
+import { disclosed } from '@/plugin/http/concealment'
 import { membershipReport } from '@/plugin/http/report'
 import { attemptStore } from '@/plugin/stores/admission/attempt'
 import { joinStore } from '@/plugin/stores/admission/join'
@@ -43,6 +44,7 @@ type JoinDeps = AttemptBudgets & {
   readonly locate: (secret: string) => KeyedDigest
   readonly grantLifetime: number
   readonly requireSession: boolean
+  readonly concealRefusals: boolean
   readonly expireAnonymousSeats: boolean
   readonly signal: Signal
 }
@@ -71,19 +73,20 @@ type Accounting = {
   readonly reservation: Reservation
 }
 
-const refusing = (accounting: Accounting) => async (refusal: JoinRefusal) => {
-  const { attempt, attempts, logger, reservation } = accounting
+const refusing =
+  (accounting: Accounting, conceal: boolean) =>
+  async (refusal: JoinRefusal) => {
+    const { attempt, attempts, logger, reservation } = accounting
+    const shown = disclosed(refusal, conceal)
 
-  if (refusal === 'unresolved') {
-    await charge(attempt, attempts, logger, reservation)
-  } else {
-    await releaseAttempt(attempt, attempts, reservation)
+    if (shown === 'unresolved') {
+      await charge(attempt, attempts, logger, reservation)
+    } else {
+      await releaseAttempt(attempt, attempts, reservation)
+    }
+
+    return joinError(shown)
   }
-
-  return joinError(refusal)
-}
-
-const needsSession = async () => joinNeedsASessionError()
 
 const seatLifetimeOf = (deps: JoinDeps) =>
   deps.expireAnonymousSeats ? deps.grantLifetime : null
@@ -113,7 +116,10 @@ export const joinEndpoint = (deps: JoinDeps) =>
       if (reservation === 'over') throw tooManyAttemptsError()
 
       const accounting = { attempt, attempts, logger, reservation }
-      const refused = refusing(accounting)
+      const refused = refusing(accounting, deps.concealRefusals)
+
+      const needsSession = async () =>
+        deps.concealRefusals ? refused('unresolved') : joinNeedsASessionError()
 
       const identifiers = await deps.identify(secret)(ctx.body.code)
 
