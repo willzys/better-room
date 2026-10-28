@@ -1,10 +1,6 @@
-import { assertRoomHooks, isObject, signalling } from '@/plugin/hooks/events'
+import { isObject, signalOf } from '@/plugin/hooks/events'
 import { MAX_STORED_INTEGER } from '@/plugin/schema/tables'
-import {
-  CODE_FORMAT_NAMES,
-  codeFormat,
-  isCodeFormatName
-} from '@/security/code-format'
+import { codeFormatOf } from '@/security/code-format'
 
 import type { RoomHooks } from '@/plugin/hooks/events'
 import type { RoomSchemaOption } from '@/plugin/schema/tables'
@@ -93,41 +89,57 @@ export type RoomOptions = {
   readonly hooks?: RoomHooks
 }
 
-const groupOf = (value: unknown, name: string): Record<string, unknown> => {
+type Grouped = { readonly root: RoomOptions } & {
+  readonly [
+    Group in 'code' | 'grant' | 'creation' | 'join' | 'attempts'
+  ]-?: NonNullable<RoomOptions[Group]>
+}
+
+const GROUPS = {
+  root: ['code', 'grant', 'creation', 'join', 'attempts', 'schema', 'hooks'],
+  code: ['format', 'length', 'grace'],
+  grant: ['lifetime'],
+  creation: ['overHttp'],
+  join: ['requireSession'],
+  attempts: ['window', 'perIp', 'everyone']
+} as const satisfies {
+  readonly [Group in keyof Grouped]: readonly (keyof Grouped[Group])[]
+}
+
+const groupOf = (
+  value: unknown,
+  name: string,
+  known: readonly string[]
+): Record<string, unknown> => {
   if (value === undefined) return {}
   if (!isObject(value)) throw new TypeError(`${name} must be an object`)
+
+  const stray = Object.keys(value).find(key => !known.includes(key))
+
+  if (stray !== undefined) {
+    throw new TypeError(
+      `${name} has no option ${stray}; expected one of ${known.join(', ')}`
+    )
+  }
 
   return value
 }
 
 const limitsOf = (attempts: Record<string, unknown>) => {
   const window = boundedInteger(attempts.window, BOUNDS.attemptWindow)
+  const perIp = boundedInteger(attempts.perIp, BOUNDS.attemptsPerIp)
+  const everyone = boundedInteger(attempts.everyone, BOUNDS.attemptsForEveryone)
 
-  return {
-    perIp: {
-      window,
-      max: boundedInteger(attempts.perIp, BOUNDS.attemptsPerIp)
-    },
-    everyone: {
-      window,
-      max: boundedInteger(attempts.everyone, BOUNDS.attemptsForEveryone)
-    }
-  }
-}
-
-const formatOf = (code: Record<string, unknown>) => {
-  const name = code.format === undefined ? 'crockford' : code.format
-
-  if (!isCodeFormatName(name)) {
-    throw new TypeError(
-      `code format must be one of ${CODE_FORMAT_NAMES.join(', ')}`
+  if (attempts.perIp !== undefined && perIp > everyone) {
+    throw new RangeError(
+      `${BOUNDS.attemptsPerIp.name} must not exceed ${BOUNDS.attemptsForEveryone.name}`
     )
   }
-  if (code.length !== undefined && typeof code.length !== 'number') {
-    throw new TypeError('room code length must be a number')
-  }
 
-  return codeFormat(name, code.length)
+  return {
+    perIp: { window, max: perIp },
+    everyone: { window, max: everyone }
+  }
 }
 
 const flagOf = (value: unknown, name: string) => {
@@ -139,40 +151,32 @@ const flagOf = (value: unknown, name: string) => {
   return value
 }
 
-const signalOf = (options?: RoomOptions) => {
-  if (options !== undefined && 'onChange' in options) {
+const rootOf = (options: unknown) => {
+  if (isObject(options) && 'onChange' in options) {
     throw new TypeError('onChange was replaced by hooks.onEvent')
   }
 
-  const hooks: unknown = options?.hooks
-
-  if (hooks === undefined) return signalling()
-
-  assertRoomHooks(hooks)
-
-  return signalling(hooks)
+  return groupOf(options, 'better-room options', GROUPS.root)
 }
 
 export const settingsOf = (options?: RoomOptions) => {
-  const given = groupOf(options, 'better-room options')
-  const code = groupOf(given.code, 'code')
+  const given = rootOf(options)
+  const code = groupOf(given.code, 'code', GROUPS.code)
+  const join = groupOf(given.join, 'join', GROUPS.join)
 
   return {
-    format: formatOf(code),
+    format: codeFormatOf(code.format, code.length),
     grace: boundedInteger(code.grace, BOUNDS.grace),
     grantLifetime: boundedInteger(
-      groupOf(given.grant, 'grant').lifetime,
+      groupOf(given.grant, 'grant', GROUPS.grant).lifetime,
       BOUNDS.grantLifetime
     ),
     overHttp: flagOf(
-      groupOf(given.creation, 'creation').overHttp,
+      groupOf(given.creation, 'creation', GROUPS.creation).overHttp,
       'creation over http'
     ),
-    requireSession: flagOf(
-      groupOf(given.join, 'join').requireSession,
-      'join require session'
-    ),
-    signal: signalOf(options),
-    ...limitsOf(groupOf(given.attempts, 'attempts'))
+    requireSession: flagOf(join.requireSession, 'join require session'),
+    signal: signalOf(given.hooks),
+    ...limitsOf(groupOf(given.attempts, 'attempts', GROUPS.attempts))
   }
 }

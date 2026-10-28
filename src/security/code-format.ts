@@ -97,6 +97,21 @@ export const codeFormat = (
   }
 }
 
+export const codeFormatOf = (name: unknown, length: unknown) => {
+  const resolved = name === undefined ? 'crockford' : name
+
+  if (!isCodeFormatName(resolved)) {
+    throw new TypeError(
+      `code format must be one of ${CODE_FORMAT_NAMES.join(', ')}`
+    )
+  }
+  if (length !== undefined && typeof length !== 'number') {
+    throw new TypeError('room code length must be a number')
+  }
+
+  return codeFormat(resolved, length)
+}
+
 export const normalize = (
   input: string,
   format: CodeFormat

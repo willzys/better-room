@@ -220,3 +220,31 @@ describe('the option groups', () => {
     ).not.toThrow()
   })
 })
+
+describe('options a caller misspells or contradicts', () => {
+  test.each([
+    [
+      { attempts: { perIP: 1 } },
+      /attempts has no option perIP; expected one of window, perIp, everyone/
+    ],
+    [{ code: { lenght: 3 } }, /code has no option lenght/],
+    [{ grants: { lifetime: 5 } }, /better-room options has no option grants/]
+  ])(
+    'refuses the misspelt option %p instead of ignoring it',
+    (options, message) => {
+      expect(() => Reflect.apply(betterRoom, undefined, [options])).toThrow(
+        message
+      )
+    }
+  )
+
+  test('refuses a ceiling per address above the ceiling for everyone', () => {
+    expect(() => betterRoom({ attempts: { perIp: 50, everyone: 5 } })).toThrow(
+      new RangeError('attempts per ip must not exceed attempts for everyone')
+    )
+    expect(() =>
+      betterRoom({ attempts: { perIp: 5, everyone: 5 } })
+    ).not.toThrow()
+    expect(() => betterRoom({ attempts: { everyone: 5 } })).not.toThrow()
+  })
+})
