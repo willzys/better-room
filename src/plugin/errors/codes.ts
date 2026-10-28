@@ -3,6 +3,7 @@ import { defineErrorCodes } from '@better-auth/core/utils/error-codes'
 export const ROOM_ERROR_CODES = defineErrorCodes({
   CODE_DID_NOT_RESOLVE: 'The room code did not resolve',
   ROOM_LOCKED: 'The room is locked and refuses new memberships',
+  ROOM_NOT_LOCKED: 'Lock the room before counting its seats again',
   ROOM_CLOSED: 'The room is closed',
   ROOM_CONTENDED: 'The room changed state while this request settled it',
   ROOM_EXPIRED: 'The room has expired',

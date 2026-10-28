@@ -158,6 +158,7 @@ describe('the boundary of the http router', () => {
         'unlockRoom',
         'closeRoom',
         'reconcileRoomCapacity',
+        'recountRoomCapacity',
         'pruneRoomAttempts'
       ])
     )

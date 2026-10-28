@@ -19,6 +19,7 @@ export type {
   OccupancyReport,
   PromotionReport,
   PruningReport,
+  RecountReport,
   ReconciliationReport,
   RoomReport
 } from '@/plugin/http/report'

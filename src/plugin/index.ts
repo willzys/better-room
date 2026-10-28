@@ -10,6 +10,7 @@ import { lifecycleEndpoint } from '@/plugin/endpoints/post/lifecycle'
 import { promoteEndpoint } from '@/plugin/endpoints/post/promote'
 import { pruneEndpoint } from '@/plugin/endpoints/post/prune'
 import { reconcileEndpoint } from '@/plugin/endpoints/post/reconcile'
+import { recountEndpoint } from '@/plugin/endpoints/post/recount'
 import { renameEndpoint } from '@/plugin/endpoints/post/rename'
 import { revokeEndpoint } from '@/plugin/endpoints/post/revoke'
 import { rotateEndpoint } from '@/plugin/endpoints/post/rotate'
@@ -87,6 +88,7 @@ export const betterRoom = (options?: RoomOptions) => {
       unlockRoom: lifecycleEndpoint('unlock', signal),
       closeRoom: lifecycleEndpoint('close', signal),
       reconcileRoomCapacity: reconcileEndpoint(signal),
+      recountRoomCapacity: recountEndpoint(),
       pruneRoomAttempts: pruneEndpoint(perIp.window)
     },
     hooks: signOutHooks(),

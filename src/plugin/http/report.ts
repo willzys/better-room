@@ -1,6 +1,7 @@
 import type { Membership } from '@/core/membership'
 import type { Pruning } from '@/core/operations/admission/pruning'
 import type { Reconciliation } from '@/core/operations/capacity/reconciliation'
+import type { RecountOutcome } from '@/core/operations/capacity/recount'
 import type { Promoted } from '@/core/operations/identity/promotion'
 import type { Member } from '@/core/operations/reads/members'
 import type { Occupied } from '@/core/operations/reads/occupancy'
@@ -32,6 +33,11 @@ export type OccupancyReport = {
 export type ReconciliationReport = {
   readonly owing: number
   readonly released: number
+}
+
+export type RecountReport = {
+  readonly before: number
+  readonly after: number
 }
 
 export type PruningReport = {
@@ -112,6 +118,10 @@ export const pruningReport = (pruning: Pruning): PruningReport => ({
   pruned: pruning.pruned,
   complete: pruning.complete
 })
+
+export const recountReport = (
+  outcome: Extract<RecountOutcome, { recounted: true }>
+): RecountReport => ({ before: outcome.before, after: outcome.after })
 
 export const memberReport = (member: Member): MemberReport => ({
   membership: membershipReport(member.membership),
