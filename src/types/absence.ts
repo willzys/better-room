@@ -14,6 +14,8 @@ export type Unstarted<T> = T | Absent
 
 export type Resumable<T> = T | Absent
 
+export type Unnamed<T> = T | Absent
+
 export type Unusable = Absent
 
 export type Usable<T> = T | Unusable

@@ -94,6 +94,7 @@ const reentering = async (
         create: () => Promise.resolve(actor)
       },
       seatLifetime: null,
+      displayName: null,
       now: new Date()
     },
     {
@@ -101,7 +102,7 @@ const reentering = async (
       reinstate: async id => {
         await seam.pause()
 
-        return joins.reinstate(id)
+        return joins.reinstate(id, null)
       }
     }
   )

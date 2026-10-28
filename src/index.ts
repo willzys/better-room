@@ -4,7 +4,8 @@ export type {
   Pending,
   Perpetual,
   Unbounded,
-  Unlinked
+  Unlinked,
+  Unnamed
 } from '@/types/absence'
 
 export type { Actor } from '@/core/actor'

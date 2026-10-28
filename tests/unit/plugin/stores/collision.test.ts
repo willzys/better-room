@@ -38,6 +38,7 @@ describe('a write whose acknowledgement is lost', () => {
         roomId: 'room-1',
         actorId: 'actor-1',
         role: 'participant',
+        displayName: null,
         expiresAt: null
       })
 

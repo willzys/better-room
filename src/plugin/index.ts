@@ -9,6 +9,7 @@ import { lifecycleEndpoint } from '@/plugin/endpoints/post/lifecycle'
 import { promoteEndpoint } from '@/plugin/endpoints/post/promote'
 import { pruneEndpoint } from '@/plugin/endpoints/post/prune'
 import { reconcileEndpoint } from '@/plugin/endpoints/post/reconcile'
+import { renameEndpoint } from '@/plugin/endpoints/post/rename'
 import { revokeEndpoint } from '@/plugin/endpoints/post/revoke'
 import { rotateEndpoint } from '@/plugin/endpoints/post/rotate'
 import { ROOM_ERROR_CODES } from '@/plugin/errors/codes'
@@ -75,6 +76,7 @@ export const betterRoom = (options?: RoomOptions) => {
       createRoom: createEndpoint({ format, identify, overHttp, signal }),
       joinRoom: joinEndpoint({ ...settings, identify, locate }),
       leaveRoom: leaveEndpoint(signal),
+      renameRoomMember: renameEndpoint(signal),
       listRoomMemberships: membershipsEndpoint(),
       promoteRoomActor: promoteEndpoint(signal),
       rotateRoomCode: rotateEndpoint({ format, identify, grace, signal }),

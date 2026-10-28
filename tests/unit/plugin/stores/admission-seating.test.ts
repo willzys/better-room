@@ -18,6 +18,7 @@ describe('enrolling a new member', () => {
       roomId: 'room-1',
       actorId: 'actor-1',
       role: 'participant',
+      displayName: null,
       expiresAt: null
     })
 
@@ -34,6 +35,7 @@ describe('enrolling a new member', () => {
     const outcome = seatOf(
       await seatingStore(adapterFor(db)).occupy('member-1', {
         role: 'host',
+        displayName: null,
         expiresAt: LATER
       })
     )
@@ -41,12 +43,15 @@ describe('enrolling a new member', () => {
     expect(outcome.occupied).toBe(true)
     expect(outcome.membership).toMatchObject({
       role: 'host',
+      displayName: null,
       expiresAt: LATER,
       leftAt: null
     })
     expect(onlyRow(db.roomMember).occupancy).toBe(1)
   })
+})
 
+describe('refusing to seat a membership', () => {
   test('never takes the seat of a membership that already left once', async () => {
     const db = empty()
     seated(db, 1)
@@ -57,6 +62,7 @@ describe('enrolling a new member', () => {
     const outcome = seatOf(
       await seatingStore(adapterFor(db)).occupy('member-1', {
         role: 'host',
+        displayName: null,
         expiresAt: null
       })
     )
@@ -72,10 +78,10 @@ describe('enrolling a new member', () => {
       occupied({ occupancy: 0, leftAt: EARLIER, revokedAt: EARLIER })
     )
     const store = seatingStore(adapterFor(db))
-    const terms = { role: 'participant', expiresAt: null }
+    const terms = { role: 'participant', displayName: null, expiresAt: null }
 
     expect(seatOf(await store.occupy('member-1', terms)).occupied).toBe(false)
-    expect(seatOf(await store.reinstate('member-1')).occupied).toBe(false)
+    expect(seatOf(await store.reinstate('member-1', null)).occupied).toBe(false)
     expect(onlyRow(db.roomMember).occupancy).toBe(0)
   })
 })
@@ -110,7 +116,7 @@ describe('taking a seat back on a rejoin', () => {
     )
 
     const outcome = seatOf(
-      await joinStore(adapterFor(db)).reinstate('member-1')
+      await joinStore(adapterFor(db)).reinstate('member-1', null)
     )
 
     expect(outcome.occupied).toBe(true)
@@ -125,7 +131,7 @@ describe('taking a seat back on a rejoin', () => {
     db.roomMember.push(occupied({ leftAt: EARLIER }))
 
     const outcome = seatOf(
-      await joinStore(adapterFor(db)).reinstate('member-1')
+      await joinStore(adapterFor(db)).reinstate('member-1', null)
     )
 
     expect(outcome.occupied).toBe(false)
@@ -171,8 +177,8 @@ describe('two rejoins at once', () => {
 
     const outcomes = (
       await Promise.all([
-        store.reinstate('member-1'),
-        store.reinstate('member-1')
+        store.reinstate('member-1', null),
+        store.reinstate('member-1', null)
       ])
     ).map(seatOf)
 
@@ -186,6 +192,6 @@ describe('two rejoins at once', () => {
 
 describe('a rejoin whose membership vanished', () => {
   test('answers absent instead of a seat', async () => {
-    expect(await joinStore(adapterFor()).reinstate('missing')).toBeNull()
+    expect(await joinStore(adapterFor()).reinstate('missing', null)).toBeNull()
   })
 })

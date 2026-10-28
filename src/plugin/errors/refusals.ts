@@ -7,6 +7,7 @@ import type { JoinRefusal } from '@/core/operations/admission/join'
 import type { LeaveRefusal } from '@/core/operations/capacity/leave'
 import type { RevocationRefusal } from '@/core/operations/capacity/revocation'
 import type { RotationRefusal } from '@/core/operations/codes/rotation'
+import type { NamingRefusal } from '@/core/operations/identity/naming'
 import type { PromotionRefusal } from '@/core/operations/identity/promotion'
 import type { OccupancyRefusal } from '@/core/operations/reads/occupancy'
 import type { CreationRefusal } from '@/core/operations/rooms/creation'
@@ -84,6 +85,11 @@ export const leaveError = refusing<LeaveRefusal>({
   'not-a-member': ['FORBIDDEN', ROOM_ERROR_CODES.NOT_A_MEMBER],
   revoked: ['FORBIDDEN', ROOM_ERROR_CODES.MEMBERSHIP_REVOKED],
   'membership-expired': ['FORBIDDEN', ROOM_ERROR_CODES.MEMBERSHIP_EXPIRED]
+})
+
+export const namingError = refusing<NamingRefusal>({
+  'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  'not-a-member': ['FORBIDDEN', ROOM_ERROR_CODES.NOT_A_MEMBER]
 })
 
 export const revocationError = refusing<RevocationRefusal>({

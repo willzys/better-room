@@ -4,10 +4,11 @@ import type { Actor } from '@/core/actor'
 import type { Membership } from '@/core/membership'
 import type { ErasureStore } from '@/core/operations/identity/erasure'
 import type { Room, RoomStatus } from '@/core/room'
-import type { Perpetual, Unbounded, Usable } from '@/types/absence'
+import type { Perpetual, Unbounded, Unnamed, Usable } from '@/types/absence'
 
 export type Terms = {
   readonly role: string
+  readonly displayName: Unnamed<string>
   readonly expiresAt: Perpetual<Date>
 }
 
@@ -36,7 +37,10 @@ export type SeatingStore = {
     membershipId: string,
     terms: Terms
   ) => Promise<Usable<Seated>>
-  readonly reinstate: (membershipId: string) => Promise<Usable<Seated>>
+  readonly reinstate: (
+    membershipId: string,
+    displayName: Unnamed<string>
+  ) => Promise<Usable<Seated>>
   readonly readmit: (
     membershipId: string,
     terms: Terms
@@ -83,7 +87,7 @@ const taken = (membershipId: string, seating: Seating, store: SeatingStore) => {
   }
 
   return seating.returning === 'rejoin'
-    ? store.reinstate(membershipId)
+    ? store.reinstate(membershipId, seating.terms.displayName)
     : store.readmit(membershipId, seating.terms)
 }
 

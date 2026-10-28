@@ -94,6 +94,7 @@ const add = (
       roomId: 'room-1',
       actor: { id: 'actor-1', userId: null },
       role: 'organizer',
+      displayName: null,
       expiresAt: null,
       now: NOW,
       ...request
@@ -112,6 +113,7 @@ describe('addMember', () => {
         roomId: 'room-1',
         actorId: 'actor-1',
         role: 'organizer',
+        displayName: null,
         expiresAt: null
       }
     ])
@@ -220,6 +222,7 @@ describe('addMember returning a seat it could not use', () => {
         roomId: 'room-1',
         actor: { id: 'actor-1', userId: null },
         role: 'organizer',
+        displayName: null,
         expiresAt: null,
         now: NOW
       },

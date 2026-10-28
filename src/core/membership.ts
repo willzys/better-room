@@ -1,10 +1,11 @@
-import type { Absent, Pending, Perpetual } from '@/types/absence'
+import type { Absent, Pending, Perpetual, Unnamed } from '@/types/absence'
 
 export type Membership = {
   id: string
   roomId: string
   actorId: string
   role: string
+  displayName: Unnamed<string>
   joinedAt: Date
   expiresAt: Perpetual<Date>
   leftAt: Pending<Date>

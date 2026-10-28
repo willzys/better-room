@@ -92,6 +92,7 @@ model RoomMember {
   roomId String
   actorId String
   role String @default("participant")
+  displayName String?
   joinedAt DateTime
   expiresAt DateTime?
   leftAt DateTime?

@@ -136,6 +136,7 @@ export const attempt = async (seed: Parameters<typeof joinFake>[0]) => {
       codeIdentifiers: ['identifier'],
       actor: actors,
       seatLifetime: seed.seatLifetime ?? null,
+      displayName: null,
       now: NOW
     },
     instance

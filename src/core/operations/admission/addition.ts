@@ -8,7 +8,7 @@ import type {
   SeatingStore
 } from '@/core/operations/admission/seating'
 import type { Room } from '@/core/room'
-import type { Absent, Perpetual, Usable } from '@/types/absence'
+import type { Absent, Perpetual, Unnamed, Usable } from '@/types/absence'
 
 const ADDABLE = ['active', 'locked'] as const
 
@@ -35,6 +35,7 @@ export type AdditionRequest = {
   readonly roomId: string
   readonly actor: ActorLink
   readonly role: string
+  readonly displayName: Unnamed<string>
   readonly expiresAt: Perpetual<Date>
   readonly now: Date
 }
@@ -115,7 +116,8 @@ export const addMember = async (
 
   if (!admitted) return turnedAway(request, store)
 
-  const terms = { role: request.role, expiresAt: request.expiresAt }
+  const { role, displayName, expiresAt } = request
+  const terms = { role, displayName, expiresAt }
   const seated = await seat(
     { room, actor: request.actor, terms, existing, returning: 'readmission' },
     store

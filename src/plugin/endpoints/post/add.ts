@@ -8,6 +8,7 @@ import {
   exactlyOneIdentityError,
   unknownActorError
 } from '@/plugin/errors/refusals'
+import { displayNameField } from '@/plugin/http/display-name'
 import { isStoredId } from '@/plugin/http/identifiers'
 import { membershipReport } from '@/plugin/http/report'
 import { LATEST_STORED_DATE } from '@/plugin/schema/tables'
@@ -31,6 +32,9 @@ const addBody = z.object({
   role: z
     .string()
     .meta({ description: 'The role the membership carries, named by the app' }),
+  name: displayNameField
+    .optional()
+    .meta({ description: 'The name shown for the member in this room' }),
   expiresAt: z.coerce
     .date()
     .max(LATEST_STORED_DATE)
@@ -91,6 +95,7 @@ export const addEndpoint = (signal: Signal) =>
           roomId: ctx.body.roomId,
           actor,
           role: ctx.body.role,
+          displayName: ctx.body.name ?? null,
           expiresAt: ctx.body.expiresAt ?? null,
           now: new Date()
         },
