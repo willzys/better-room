@@ -118,7 +118,7 @@ export const joinFake = (seed: Seed) => {
 export const attempt = async (seed: Parameters<typeof joinFake>[0]) => {
   const { instance, calls, resolveActor } = joinFake(seed)
   const outcome = await join(
-    { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+    { codeIdentifiers: ['identifier'], actor: resolveActor, now: NOW },
     instance
   )
   return { outcome, calls }

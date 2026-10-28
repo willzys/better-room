@@ -168,7 +168,7 @@ describe('join enrolling a new member', () => {
     const { instance: seeded, resolveActor } = joinFake({})
 
     await join(
-      { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+      { codeIdentifiers: ['identifier'], actor: resolveActor, now: NOW },
       {
         ...seeded,
         admit: async (...args) => {

@@ -92,3 +92,13 @@ describe('POST /better-room/join requiring a session', () => {
     expect(onlyRow(db.room).memberCount).toBe(1)
   })
 })
+
+describe('POST /better-room/join with a code stored before formats were separated', () => {
+  test('still admits it', async () => {
+    const db = empty()
+    const code = await seedRoom(db, { plaintext: 'ABCD1234', legacy: true })
+    const response = await postRoute(memoryAuth(db), 'join', { code })
+
+    expect((await joinedMember(response)).roomId).toBe('room-1')
+  })
+})

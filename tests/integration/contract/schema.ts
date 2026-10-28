@@ -83,12 +83,11 @@ export const uniquenessContract = ({ start, uniqueViolation }: Harness) => {
       const auth = await start()
       const created = await auth.api.createRoom({ body: {} })
       const stored = onlyRow(await rows(auth, 'roomCode'))
-      expect(stored.identifier).toBe(
-        await codeIdentifier({
-          format: codeFormat('crockford'),
-          secret: SECRET
-        })(created.code)
-      )
+      const derived = await codeIdentifier({
+        format: codeFormat('crockford'),
+        secret: SECRET
+      })(created.code)
+      expect(stored.identifier).toBe(derived?.current)
       expect(stored.roomId).toBe(created.room.id)
       expect(JSON.stringify(stored)).not.toContain(created.code)
       expect(await rows(auth, 'roomMember')).toHaveLength(0)

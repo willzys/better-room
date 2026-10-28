@@ -25,7 +25,7 @@ export type JoinRefusal =
   | 'unresolved'
 
 export type JoinStore = SeatingStore & {
-  readonly code: (identifier: string) => Promise<Usable<RoomCode>>
+  readonly code: (identifiers: readonly string[]) => Promise<Usable<RoomCode>>
   readonly room: (id: string) => Promise<Usable<Room>>
   readonly membership: (
     roomId: string,
@@ -34,7 +34,7 @@ export type JoinStore = SeatingStore & {
 }
 
 export type JoinRequest = {
-  readonly codeIdentifier: string
+  readonly codeIdentifiers: readonly string[]
   readonly actor: () => Promise<Actor>
   readonly now: Date
 }
@@ -142,7 +142,7 @@ export const join = async (
   request: JoinRequest,
   store: JoinStore
 ): Promise<JoinOutcome> => {
-  const code = await store.code(request.codeIdentifier)
+  const code = await store.code(request.codeIdentifiers)
 
   if (code === null || !isResolvable(code, request.now)) {
     return refuse('unresolved')

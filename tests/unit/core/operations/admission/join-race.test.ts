@@ -52,7 +52,7 @@ describe('join returning a seat it could not use', () => {
 
     await expect(
       join(
-        { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+        { codeIdentifiers: ['identifier'], actor: resolveActor, now: NOW },
         { ...instance, enroll: () => Promise.reject(failure) }
       )
     ).rejects.toBe(failure)
@@ -92,7 +92,7 @@ describe('join racing what removes its membership', () => {
     const reads = [null, membership()]
 
     const outcome = await join(
-      { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+      { codeIdentifiers: ['identifier'], actor: resolveActor, now: NOW },
       {
         ...instance,
         membership: () => Promise.resolve(reads.shift() ?? null)
@@ -112,7 +112,7 @@ describe('join racing what removes its membership', () => {
     const reads = [room(), room({ status: 'locked' })]
 
     const outcome = await join(
-      { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+      { codeIdentifiers: ['identifier'], actor: resolveActor, now: NOW },
       { ...instance, room: () => Promise.resolve(reads.shift() ?? null) }
     )
 
@@ -127,7 +127,7 @@ describe('join answering after the gate turned it down', () => {
     const reads = [null, membership()]
 
     const outcome = await join(
-      { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+      { codeIdentifiers: ['identifier'], actor: resolveActor, now: NOW },
       {
         ...instance,
         room: () => Promise.resolve(rooms.shift() ?? null),

@@ -11,6 +11,7 @@ import type { BetterAuthOptions } from 'better-auth/types'
 import type { Room } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
 import type { RoomOptions } from '@/plugin/options'
+import type { CodeFormat } from '@/security/code-format'
 
 export type Row = Record<string, unknown>
 export type Table =
@@ -48,6 +49,19 @@ export const memoryAuth = (
     ...(databaseHooks === undefined ? {} : { databaseHooks })
   })
 
+const storedIdentifier = async (
+  format: CodeFormat,
+  plaintext: string,
+  secret: string,
+  legacy: boolean
+) => {
+  const identifiers = await codeIdentifier({ format, secret })(plaintext)
+
+  if (identifiers === null) throw new Error('Invalid room code fixture')
+
+  return legacy ? identifiers.legacy : identifiers.current
+}
+
 export const seedRoom = async (
   db: Tables,
   seed: {
@@ -56,6 +70,7 @@ export const seedRoom = async (
     options?: RoomOptions
     plaintext?: string
     secret?: string
+    legacy?: boolean
   } = {}
 ) => {
   const format = codeFormat(
@@ -63,11 +78,12 @@ export const seedRoom = async (
     seed.options?.code?.length
   )
   const plaintext = seed.plaintext ?? '1'.repeat(format.length)
-  const identifier = await codeIdentifier({
+  const identifier = await storedIdentifier(
     format,
-    secret: seed.secret ?? SECRET
-  })(plaintext)
-  if (identifier === null) throw new Error('Invalid room code fixture')
+    plaintext,
+    seed.secret ?? SECRET,
+    seed.legacy === true
+  )
   const seededRoom = room(seed.room)
   db.room.push(seededRoom)
   db.roomCode.push(

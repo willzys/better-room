@@ -20,7 +20,7 @@ describe('a row edited outside the plugin', () => {
     const db = empty()
     db.roomCode.push({ ...codeRow('paused', EARLIER), status: 'paused' })
 
-    await expect(joinStore(adapterFor(db)).code('paused')).rejects.toThrow(
+    await expect(joinStore(adapterFor(db)).code(['paused'])).rejects.toThrow(
       new TypeError("roomCode row-paused holds an unknown status 'paused'")
     )
   })

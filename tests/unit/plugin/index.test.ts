@@ -22,7 +22,7 @@ test('derives the code subkey while the context initialises', async () => {
 
     await auth.api.joinRoom({ body: { code: 'ABCD1234' }, asResponse: true })
 
-    expect(afterInit).toBe(2)
+    expect(afterInit).toBe(4)
     expect(imports()).toBe(afterInit)
   })
 })

@@ -13,6 +13,7 @@ import {
 import { isServerCall } from '@/plugin/http/carrier'
 import { roomReport } from '@/plugin/http/report'
 import { LATEST_STORED_DATE, MAX_STORED_INTEGER } from '@/plugin/schema/tables'
+import { codeStore } from '@/plugin/stores/codes/code'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { userLookup } from '@/plugin/stores/lookups'
 import { creationStore } from '@/plugin/stores/rooms/creation'
@@ -96,7 +97,11 @@ export const createEndpoint = (deps: CreateDeps) =>
               : await actorIdOf(creator, actorStore(adapter)),
           maxMembers: ctx.body.maxMembers ?? null,
           expiresAt: ctx.body.expiresAt ?? null,
-          mint: minter(deps.format, deps.identify(secret)),
+          mint: minter(
+            deps.format,
+            deps.identify(secret),
+            codeStore(adapter).taken
+          ),
           now: new Date()
         },
         creationStore(adapter)

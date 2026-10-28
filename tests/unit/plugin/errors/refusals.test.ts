@@ -164,10 +164,12 @@ describe('the crockford alphabet', () => {
     db.roomCode.length = 0
     db.roomCode.push({
       id: 'code-1',
-      identifier: await codeIdentifier({
-        format: codeFormat('crockford', 4),
-        secret: SECRET
-      })('1101'),
+      identifier: (
+        await codeIdentifier({
+          format: codeFormat('crockford', 4),
+          secret: SECRET
+        })('1101')
+      )?.current,
       roomId: 'room-1',
       status: 'active',
       expiresAt: null,

@@ -21,6 +21,7 @@ export const isCodeFormatName = (value: unknown): value is CodeFormatName =>
   CODE_FORMAT_NAMES.some(name => name === value)
 
 export type CodeFormat = {
+  readonly name: CodeFormatName
   readonly symbols: string
   readonly length: number
   readonly canonicalize: (input: string) => Usable<string>
@@ -91,6 +92,7 @@ export const codeFormat = (
   }
 
   return {
+    name,
     symbols: spec.symbols,
     length: resolved,
     canonicalize: canonicalizerOf(spec)

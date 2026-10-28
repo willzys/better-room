@@ -89,13 +89,13 @@ export const joinEndpoint = (deps: JoinDeps) =>
 
       if (await isThrottled(attempt, attempts)) throw tooManyAttemptsError()
 
-      const identifier = await deps.identify(secret)(ctx.body.code)
+      const identifiers = await deps.identify(secret)(ctx.body.code)
 
-      if (identifier === null) throw await refused('unresolved')
+      if (identifiers === null) throw await refused('unresolved')
 
       const outcome = await join(
         {
-          codeIdentifier: identifier,
+          codeIdentifiers: [identifiers.current, identifiers.legacy],
           now,
           actor: async () => {
             const carriers = await carriersFrom(ctx, now)
