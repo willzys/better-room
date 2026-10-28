@@ -3,6 +3,7 @@ import * as z from 'zod'
 
 import { revokeMember } from '@/core/operations/capacity/revocation'
 import { revocationError } from '@/plugin/errors/refusals'
+import { isStoredId } from '@/plugin/http/identifiers'
 import { membershipReport } from '@/plugin/http/report'
 import { revocationStore } from '@/plugin/stores/capacity/revocation'
 
@@ -21,6 +22,15 @@ export const revokeEndpoint = (signal: Signal) =>
   createAuthEndpoint.serverOnly(
     { method: 'POST', body: revokeBody },
     async ctx => {
+      const { options } = ctx.context
+
+      if (!isStoredId(options, ctx.body.roomId)) {
+        throw revocationError('unknown-room')
+      }
+      if (!isStoredId(options, ctx.body.actorId)) {
+        throw revocationError('not-a-member')
+      }
+
       const outcome = await revokeMember(
         {
           roomId: ctx.body.roomId,

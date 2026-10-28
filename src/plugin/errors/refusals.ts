@@ -163,3 +163,8 @@ export const noGrantToPromoteError = failing(
   'BAD_REQUEST',
   ROOM_ERROR_CODES.NO_GRANT_TO_PROMOTE
 )
+
+export const unreadableCursorError = failing(
+  'BAD_REQUEST',
+  ROOM_ERROR_CODES.UNREADABLE_CURSOR
+)

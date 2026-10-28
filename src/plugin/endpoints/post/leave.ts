@@ -6,6 +6,7 @@ import { leave } from '@/core/operations/capacity/leave'
 import { leaveError } from '@/plugin/errors/refusals'
 import { carriersFrom } from '@/plugin/http/carrier'
 import { concealed } from '@/plugin/http/concealment'
+import { isStoredId } from '@/plugin/http/identifiers'
 import { membershipReport } from '@/plugin/http/report'
 import { leaveStore } from '@/plugin/stores/capacity/leave'
 import { actorStore } from '@/plugin/stores/identity/actor'
@@ -23,6 +24,11 @@ export const leaveEndpoint = (signal: Signal) =>
     async ctx => {
       const now = new Date()
       const { adapter } = ctx.context
+
+      if (!isStoredId(ctx.context.options, ctx.body.roomId)) {
+        throw leaveError(concealed('unknown-room', ctx))
+      }
+
       const actor = await findActor(
         await carriersFrom(ctx, now),
         actorStore(adapter)

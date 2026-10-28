@@ -119,6 +119,22 @@ for (const [backend, generateId, start] of modes) {
       expect((await joining(auth, created.code)).status).toBe(200)
     })
 
+    test('answers an id that cannot exist as one that does not, not as a failure', async () => {
+      const auth = await start(generateId)
+      const access = await auth.api.getRoomAccess({
+        query: { roomId: 'not-an-id' },
+        asResponse: true
+      })
+      const listing = await auth.api.listRoomMemberships({
+        query: { before: 'p.not-an-id' },
+        asResponse: true
+      })
+
+      expect(access.status).toBe(404)
+      expect(await codeOf(access)).toBe('UNKNOWN_ROOM')
+      expect(listing.status).toBe(generateId === undefined ? 200 : 400)
+    })
+
     test('keeps the replaced code admitting beside the one that replaced it', async () => {
       const auth = await start(generateId)
       const created = await auth.api.createRoom({ body: {} })
