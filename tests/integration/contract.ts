@@ -20,6 +20,7 @@ import {
 import { reconciliationContract } from './contract/capacity-reconciliation'
 import { recountContract } from './contract/capacity-recount'
 import { rotationContract } from './contract/codes'
+import { retirementContract } from './contract/codes-retirement'
 import {
   promotionContract,
   promotionRefusalContract,
@@ -53,6 +54,7 @@ export const contract = (harness: Harness) => {
   refusalContract(harness)
   turnedAwayContract(harness)
   rotationContract(harness)
+  retirementContract(harness)
   backoffContract(harness)
   reservationContract(harness)
   pruningContract(harness)
