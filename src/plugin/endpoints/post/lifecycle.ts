@@ -3,6 +3,7 @@ import * as z from 'zod'
 
 import { settleRoom } from '@/core/operations/rooms/lifecycle'
 import { lifecycleError } from '@/plugin/errors/refusals'
+import { isStoredId } from '@/plugin/http/identifiers'
 import { roomReport } from '@/plugin/http/report'
 import { lifecycleStore } from '@/plugin/stores/rooms/lifecycle'
 
@@ -23,6 +24,10 @@ export const lifecycleEndpoint = (transition: Transition, signal: Signal) =>
   createAuthEndpoint.serverOnly(
     { method: 'POST', body: lifecycleBody },
     async ctx => {
+      if (!isStoredId(ctx.context.options, ctx.body.roomId)) {
+        throw lifecycleError('unknown-room')
+      }
+
       const outcome = await settleRoom(
         { roomId: ctx.body.roomId, transition },
         lifecycleStore(ctx.context.adapter)

@@ -8,6 +8,7 @@ import {
   exactlyOneIdentityError,
   unknownActorError
 } from '@/plugin/errors/refusals'
+import { isStoredId } from '@/plugin/http/identifiers'
 import { membershipReport } from '@/plugin/http/report'
 import { LATEST_STORED_DATE } from '@/plugin/schema/tables'
 import { additionStore } from '@/plugin/stores/admission/addition'
@@ -72,7 +73,15 @@ export const addEndpoint = (signal: Signal) =>
 
       if (identity === null) throw exactlyOneIdentityError()
 
-      const { adapter } = ctx.context
+      const { adapter, options } = ctx.context
+
+      if (!isStoredId(options, ctx.body.roomId)) {
+        throw additionError('unknown-room')
+      }
+      if (identity.kind === 'actor' && !isStoredId(options, identity.actorId)) {
+        throw unknownActorError()
+      }
+
       const actor = await actorFor(identity, actorStore(adapter))
 
       if (actor === null) throw unknownActorError()

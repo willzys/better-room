@@ -18,7 +18,10 @@ export const writeCursor = (
     ? null
     : `${BRANCH_TAGS[resumption.branch]}.${resumption.after ?? ''}`
 
-export const readCursor = (text: string): Resumable<Resumption> => {
+export const readCursor = (
+  text: string,
+  isKey: (value: string) => boolean
+): Resumable<Resumption> => {
   const branch = EXPIRY_BRANCHES.find(name =>
     text.startsWith(`${BRANCH_TAGS[name]}.`)
   )
@@ -27,5 +30,7 @@ export const readCursor = (text: string): Resumable<Resumption> => {
 
   const after = text.slice(BRANCH_TAGS[branch].length + 1)
 
-  return { branch, after: after === '' ? null : after }
+  if (after === '') return { branch, after: null }
+
+  return isKey(after) ? { branch, after } : null
 }
