@@ -27,6 +27,7 @@ describe('join resolving the code', () => {
 
     expect(outcome).toEqual({ admitted: false, refusal: 'unresolved' })
     expect(calls).toEqual({
+      found: 0,
       actor: 0,
       admit: 0,
       enroll: 0,
@@ -60,6 +61,34 @@ describe('join reading the room', () => {
       admitted: false,
       refusal
     })
+  })
+
+  test('answers a member who joins a locked room again with the membership it holds', async () => {
+    const held = membership()
+    const { outcome, calls } = await attempt({
+      room: room({ status: 'locked' }),
+      found: actor,
+      membership: held
+    })
+
+    expect(outcome).toEqual({
+      admitted: true,
+      actor,
+      membership: held,
+      changed: false
+    })
+    expect(calls.admit).toBe(0)
+  })
+
+  test('refuses a locked room to a member who left', async () => {
+    const { outcome, calls } = await attempt({
+      room: room({ status: 'locked' }),
+      found: actor,
+      membership: membership({ leftAt: EARLIER })
+    })
+
+    expect(outcome).toEqual({ admitted: false, refusal: 'locked' })
+    expect(calls.admit).toBe(0)
   })
 
   test('reports a closed room that also expired as closed', async () => {
@@ -141,6 +170,34 @@ describe('join against an existing membership', () => {
   })
 })
 
+describe('join into a full room', () => {
+  test('refuses a full room before creating an actor for the caller', async () => {
+    const { outcome, calls } = await attempt({
+      room: room({ maxMembers: 2, memberCount: 2 })
+    })
+
+    expect(outcome).toEqual({ admitted: false, refusal: 'at-capacity' })
+    expect(calls.actor).toBe(0)
+    expect(calls.admit).toBe(0)
+  })
+
+  test('answers a member of a full room with the membership it holds', async () => {
+    const held = membership()
+    const { outcome } = await attempt({
+      room: room({ maxMembers: 2, memberCount: 2 }),
+      found: actor,
+      membership: held
+    })
+
+    expect(outcome).toEqual({
+      admitted: true,
+      actor,
+      membership: held,
+      changed: false
+    })
+  })
+})
+
 describe('join enrolling a new member', () => {
   test('enrols through the gate with the default role', async () => {
     const { outcome, calls } = await attempt({})
@@ -165,10 +222,15 @@ describe('join enrolling a new member', () => {
 
   test('passes the gate before writing the membership', async () => {
     const order: string[] = []
-    const { instance: seeded, resolveActor } = joinFake({})
+    const { instance: seeded, actors } = joinFake({})
 
     await join(
-      { codeIdentifiers: ['identifier'], actor: resolveActor, now: NOW },
+      {
+        codeIdentifiers: ['identifier'],
+        actor: actors,
+        seatLifetime: null,
+        now: NOW
+      },
       {
         ...seeded,
         admit: async (...args) => {

@@ -79,6 +79,7 @@ export type RoomOptions = {
   }
   readonly join?: {
     readonly requireSession?: boolean
+    readonly expireAnonymousSeats?: boolean
   }
   readonly attempts?: {
     readonly window?: number
@@ -102,7 +103,7 @@ const GROUPS = {
   code: ['format', 'length', 'grace'],
   grant: ['lifetime'],
   creation: ['overHttp'],
-  join: ['requireSession'],
+  join: ['requireSession', 'expireAnonymousSeats'],
   attempts: ['window', 'perIp', 'everyone', 'progressive', 'reserve']
 } as const satisfies {
   readonly [Group in keyof Grouped]: readonly (keyof Grouped[Group])[]
@@ -180,6 +181,10 @@ export const settingsOf = (options?: RoomOptions) => {
       'creation over http'
     ),
     requireSession: flagOf(join.requireSession, 'join require session'),
+    expireAnonymousSeats: flagOf(
+      join.expireAnonymousSeats,
+      'join expire anonymous seats'
+    ),
     signal: signalOf(given.hooks),
     ...limitsOf(groupOf(given.attempts, 'attempts', GROUPS.attempts))
   }

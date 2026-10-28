@@ -1,7 +1,6 @@
 import { createAuthEndpoint } from 'better-auth/api'
 import * as z from 'zod'
 
-import { resolveActor } from '@/core/actor'
 import {
   chargeFailure,
   isThrottled,
@@ -15,14 +14,12 @@ import {
   joinNeedsASessionError
 } from '@/plugin/errors/refusals'
 import { addressOf } from '@/plugin/http/address'
-import { carriersFrom, GRANT_COOKIE } from '@/plugin/http/carrier'
+import { actorSource, issueGrant } from '@/plugin/http/carrier'
 import { membershipReport } from '@/plugin/http/report'
 import { attemptStore } from '@/plugin/stores/admission/attempt'
 import { joinStore } from '@/plugin/stores/admission/join'
-import { actorStore } from '@/plugin/stores/identity/actor'
-import { encodeGrant } from '@/security/grant'
+import { CODE } from '@/security/code-format'
 
-import type { Actor } from '@/core/actor'
 import type { AttemptStore } from '@/core/attempt'
 import type {
   AttemptBudgets,
@@ -35,7 +32,10 @@ import type { CodeIdentifier } from '@/security/code-identifier'
 import type { KeyedDigest } from '@/security/keyed-digest'
 
 const joinBody = z.object({
-  code: z.string().meta({ description: 'The room code being presented' })
+  code: z
+    .string()
+    .max(CODE.maxInput)
+    .meta({ description: 'The room code being presented' })
 })
 
 type JoinDeps = AttemptBudgets & {
@@ -43,19 +43,13 @@ type JoinDeps = AttemptBudgets & {
   readonly locate: (secret: string) => KeyedDigest
   readonly grantLifetime: number
   readonly requireSession: boolean
+  readonly expireAnonymousSeats: boolean
   readonly signal: Signal
 }
 
 type Reporter = {
   readonly warn: (message: string) => void
 }
-
-const grantFor = (actor: Actor, lifetime: number, now: Date) =>
-  encodeGrant({
-    actorId: actor.id,
-    epoch: actor.grantEpoch,
-    expiresAt: now.getTime() + lifetime * 1000
-  })
 
 const charge = async (
   request: AttemptRequest,
@@ -89,6 +83,11 @@ const refusing = (accounting: Accounting) => async (refusal: JoinRefusal) => {
   return joinError(refusal)
 }
 
+const needsSession = async () => joinNeedsASessionError()
+
+const seatLifetimeOf = (deps: JoinDeps) =>
+  deps.expireAnonymousSeats ? deps.grantLifetime : null
+
 export const joinEndpoint = (deps: JoinDeps) =>
   createAuthEndpoint(
     '/better-room/join',
@@ -113,7 +112,8 @@ export const joinEndpoint = (deps: JoinDeps) =>
 
       if (reservation === 'over') throw tooManyAttemptsError()
 
-      const refused = refusing({ attempt, attempts, logger, reservation })
+      const accounting = { attempt, attempts, logger, reservation }
+      const refused = refusing(accounting)
 
       const identifiers = await deps.identify(secret)(ctx.body.code)
 
@@ -122,16 +122,13 @@ export const joinEndpoint = (deps: JoinDeps) =>
       const outcome = await join(
         {
           codeIdentifiers: [identifiers.current, identifiers.legacy],
+          seatLifetime: seatLifetimeOf(deps),
           now,
-          actor: async () => {
-            const carriers = await carriersFrom(ctx, now)
-
-            if (deps.requireSession && carriers.userId === null) {
-              throw joinNeedsASessionError()
-            }
-
-            return resolveActor(carriers, actorStore(adapter))
-          }
+          actor: actorSource(
+            ctx,
+            now,
+            deps.requireSession ? needsSession : null
+          )
         },
         joinStore(adapter)
       )
@@ -141,16 +138,12 @@ export const joinEndpoint = (deps: JoinDeps) =>
       await releaseAttempt(attempt, attempts, reservation)
 
       if (outcome.actor.userId === null) {
-        const cookie = ctx.context.createAuthCookie(GRANT_COOKIE, {
-          maxAge: deps.grantLifetime
-        })
+        const terms = {
+          lifetime: deps.grantLifetime,
+          seatLifetime: seatLifetimeOf(deps)
+        }
 
-        await ctx.setSignedCookie(
-          cookie.name,
-          grantFor(outcome.actor, deps.grantLifetime, now),
-          secret,
-          cookie.attributes
-        )
+        await issueGrant(ctx, outcome.actor, terms, now)
       }
 
       const membership = membershipReport(outcome.membership)

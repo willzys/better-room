@@ -89,7 +89,11 @@ const reentering = async (
   return join(
     {
       codeIdentifiers: [resolved.current, resolved.legacy],
-      actor: () => Promise.resolve(actor),
+      actor: {
+        find: () => Promise.resolve(actor),
+        create: () => Promise.resolve(actor)
+      },
+      seatLifetime: null,
       now: new Date()
     },
     {

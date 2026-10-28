@@ -1,4 +1,4 @@
-import type { Unlinked, Usable } from '@/types/absence'
+import type { Perpetual, Unbounded, Unlinked, Usable } from '@/types/absence'
 
 export type Actor = {
   id: string
@@ -15,6 +15,11 @@ export type ActorClaim = {
 export type ActorCarriers = {
   readonly userId: Usable<string>
   readonly claim: Usable<ActorClaim>
+}
+
+export type ActorSource = {
+  readonly find: () => Promise<Usable<Actor>>
+  readonly create: () => Promise<Actor>
 }
 
 export type ActorStore = {
@@ -46,3 +51,21 @@ export const resolveActor = async (
   store: ActorStore
 ): Promise<Actor> =>
   (await findActor(carriers, store)) ?? store.create(carriers.userId)
+
+export const seatDeadline = (
+  actor: Actor,
+  lifetime: Unbounded<number>
+): Perpetual<Date> =>
+  actor.userId === null && lifetime !== null
+    ? new Date(actor.createdAt.getTime() + lifetime * 1000)
+    : null
+
+export const unlapsed = (
+  actor: Usable<Actor>,
+  lifetime: Unbounded<number>,
+  now: Date
+): Usable<Actor> => {
+  const deadline = actor === null ? null : seatDeadline(actor, lifetime)
+
+  return deadline !== null && deadline <= now ? null : actor
+}

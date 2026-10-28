@@ -1,6 +1,6 @@
 import type { Usable } from '@/types/absence'
 
-const CODE = {
+export const CODE = {
   minLength: 1,
   maxLength: 64,
   maxInput: 1024,

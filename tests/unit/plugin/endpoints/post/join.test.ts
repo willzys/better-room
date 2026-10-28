@@ -37,7 +37,7 @@ describe('POST /better-room/join over HTTP', () => {
     expect(cookies[0]).toContain('SameSite=Lax')
   })
 
-  test.each([{}, { code: 1234 }, { code: null }])(
+  test.each([{}, { code: 1234 }, { code: null }, { code: 'A'.repeat(1025) }])(
     'rejects a malformed body %p before touching room state',
     async body => {
       const { db, request } = await scenario()
@@ -47,6 +47,7 @@ describe('POST /better-room/join over HTTP', () => {
       expect(await codeOf(response)).toBe('VALIDATION_ERROR')
       expect(db.roomActor).toHaveLength(0)
       expect(db.roomMember).toHaveLength(0)
+      expect(db.roomAttempt).toHaveLength(0)
       expect(onlyRow(db.room).memberCount).toBe(0)
     }
   )
@@ -90,6 +91,26 @@ describe('POST /better-room/join requiring a session', () => {
     expect(response.status).toBe(200)
     expect(onlyRow(db.roomActor).userId).toBe(onlyRow(db.user).id)
     expect(onlyRow(db.room).memberCount).toBe(1)
+  })
+})
+
+describe('POST /better-room/join expiring anonymous seats', () => {
+  test('ends the seat and the grant together, at the lifetime of the actor', async () => {
+    const db = empty()
+    const code = await seedRoom(db, { plaintext: 'ABCD1234' })
+    const auth = memoryAuth(db, {
+      grant: { lifetime: 60 },
+      join: { expireAnonymousSeats: true }
+    })
+    const response = await postRoute(auth, 'join', { code })
+    const member = await joinedMember(response)
+    const grant = response.headers.getSetCookie()[0] ?? ''
+
+    const remaining = Date.parse(member.expiresAt ?? '') - Date.now()
+
+    expect(remaining).toBeGreaterThan(55_000)
+    expect(remaining).toBeLessThanOrEqual(60_000)
+    expect(grant).toMatch(/Max-Age=(59|60);/)
   })
 })
 
