@@ -27,6 +27,9 @@ import type { CodeFormat } from '@/security/code-format'
 import type { CodeIdentifier } from '@/security/code-identifier'
 import type { KeyedDigest } from '@/security/keyed-digest'
 
+const SWEEPABLE_WARNING =
+  'better-room room codes span fewer than a billion values, so a distributed sweep can find live rooms; turn on join.requireSession or lengthen code.length'
+
 const derivations = (format: CodeFormat) => {
   let identifier: CodeIdentifier | undefined
   let addresses: KeyedDigest | undefined
@@ -40,7 +43,7 @@ const derivations = (format: CodeFormat) => {
 
 export const betterRoom = (options?: RoomOptions) => {
   const settings = settingsOf(options)
-  const { format, grace, overHttp, perIp, signal } = settings
+  const { format, grace, overHttp, perIp, sweepable, signal } = settings
 
   const { identify, locate } = derivations(format)
   let boundSecret: string | undefined
@@ -56,6 +59,8 @@ export const betterRoom = (options?: RoomOptions) => {
 
       boundSecret = context.secret
       await identify(context.secret)(generate(format))
+
+      if (sweepable) context.logger.warn(SWEEPABLE_WARNING)
 
       return {
         options: {

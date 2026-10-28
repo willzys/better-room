@@ -114,6 +114,11 @@ export const codeFormatOf = (name: unknown, length: unknown) => {
   return codeFormat(resolved, length)
 }
 
+const SWEEPABLE_SPACE = 1_000_000_000
+
+export const isSweepable = (format: CodeFormat) =>
+  format.symbols.length ** format.length < SWEEPABLE_SPACE
+
 export const normalize = (
   input: string,
   format: CodeFormat

@@ -1,6 +1,6 @@
 import { isObject, signalOf } from '@/plugin/hooks/events'
 import { MAX_STORED_INTEGER } from '@/plugin/schema/tables'
-import { codeFormatOf } from '@/security/code-format'
+import { codeFormatOf, isSweepable } from '@/security/code-format'
 
 import type { RoomHooks } from '@/plugin/hooks/events'
 import type { RoomSchemaOption } from '@/plugin/schema/tables'
@@ -168,10 +168,12 @@ const rootOf = (options: unknown) => {
 export const settingsOf = (options?: RoomOptions) => {
   const given = rootOf(options)
   const code = groupOf(given.code, 'code', GROUPS.code)
+  const format = codeFormatOf(code.format, code.length)
   const join = groupOf(given.join, 'join', GROUPS.join)
+  const requireSession = flagOf(join.requireSession, 'join require session')
 
   return {
-    format: codeFormatOf(code.format, code.length),
+    format,
     grace: boundedInteger(code.grace, BOUNDS.grace),
     grantLifetime: boundedInteger(
       groupOf(given.grant, 'grant', GROUPS.grant).lifetime,
@@ -181,12 +183,13 @@ export const settingsOf = (options?: RoomOptions) => {
       groupOf(given.creation, 'creation', GROUPS.creation).overHttp,
       'creation over http'
     ),
-    requireSession: flagOf(join.requireSession, 'join require session'),
+    requireSession,
     concealRefusals: flagOf(join.concealRefusals, 'join conceal refusals'),
     expireAnonymousSeats: flagOf(
       join.expireAnonymousSeats,
       'join expire anonymous seats'
     ),
+    sweepable: !requireSession && isSweepable(format),
     signal: signalOf(given.hooks),
     ...limitsOf(groupOf(given.attempts, 'attempts', GROUPS.attempts))
   }
