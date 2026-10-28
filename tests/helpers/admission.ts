@@ -8,6 +8,7 @@ import {
   NOW
 } from './fixtures'
 
+import type { Actor, ActorSource } from '@/core/actor'
 import type { Membership } from '@/core/membership'
 import type { JoinStore } from '@/core/operations/admission/join'
 import type { ErasureStore } from '@/core/operations/identity/erasure'
@@ -18,6 +19,7 @@ import type { Usable } from '@/types/absence'
 export const actor = actorFixture()
 
 type Calls = {
+  found: number
   actor: number
   admit: number
   enroll: number
@@ -49,6 +51,8 @@ type Seed = {
   reinstated?: Partial<Membership>
   vanishes?: boolean
   survives?: boolean
+  found?: Usable<Actor>
+  seatLifetime?: number
 }
 
 const taking = (seed: Seed) => (id: string, overrides: Partial<Membership>) =>
@@ -64,6 +68,7 @@ const taking = (seed: Seed) => (id: string, overrides: Partial<Membership>) =>
 export const joinFake = (seed: Seed) => {
   const taken = taking(seed)
   const calls: Calls = {
+    found: 0,
     actor: 0,
     admit: 0,
     enroll: 0,
@@ -106,19 +111,33 @@ export const joinFake = (seed: Seed) => {
     erasure: erasure(calls)
   }
 
-  const resolveActor = () => {
-    calls.actor++
+  const actors: ActorSource = {
+    find: () => {
+      calls.found++
 
-    return Promise.resolve(actor)
+      const known = seed.membership === undefined ? null : actor
+
+      return Promise.resolve(seed.found === undefined ? known : seed.found)
+    },
+    create: () => {
+      calls.actor++
+
+      return Promise.resolve(actor)
+    }
   }
 
-  return { instance, calls, resolveActor }
+  return { instance, calls, actors }
 }
 
 export const attempt = async (seed: Parameters<typeof joinFake>[0]) => {
-  const { instance, calls, resolveActor } = joinFake(seed)
+  const { instance, calls, actors } = joinFake(seed)
   const outcome = await join(
-    { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+    {
+      codeIdentifiers: ['identifier'],
+      actor: actors,
+      seatLifetime: seed.seatLifetime ?? null,
+      now: NOW
+    },
     instance
   )
   return { outcome, calls }

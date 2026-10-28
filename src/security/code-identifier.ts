@@ -1,54 +1,38 @@
 import { normalize } from '@/security/code-format'
+import { keyedDigest } from '@/security/keyed-digest'
 
 import type { CodeFormat } from '@/security/code-format'
 import type { Usable } from '@/types/absence'
 
-const HMAC = {
-  keyLabel: 'better-room:code:v1',
-  algorithm: { name: 'HMAC', hash: 'SHA-256' },
-  hexSymbols: '0123456789abcdef'
+const CODE_KEY_LABELS = {
+  current: 'better-room:code:v2',
+  legacy: 'better-room:code:v1'
 } as const
 
-const encoder = new TextEncoder()
-
-const importKey = (material: Uint8Array<ArrayBuffer>) =>
-  crypto.subtle.importKey('raw', material, HMAC.algorithm, false, ['sign'])
-
-const sign = async (key: CryptoKey, message: Uint8Array<ArrayBuffer>) =>
-  new Uint8Array(await crypto.subtle.sign(HMAC.algorithm, key, message))
-
-const deriveSubkey = async (secret: string) => {
-  const secretKey = await importKey(encoder.encode(secret))
-
-  return importKey(await sign(secretKey, encoder.encode(HMAC.keyLabel)))
+export type CodeIdentifiers = {
+  readonly current: string
+  readonly legacy: string
 }
 
-const toHex = (bytes: Uint8Array) => {
-  let hex = ''
-
-  for (const byte of bytes) {
-    hex +=
-      HMAC.hexSymbols.charAt(byte >> 4) + HMAC.hexSymbols.charAt(byte & 0b1111)
-  }
-
-  return hex
-}
-
-export type CodeIdentifier = (code: string) => Promise<Usable<string>>
+export type CodeIdentifier = (code: string) => Promise<Usable<CodeIdentifiers>>
 
 export const codeIdentifier = (options: {
   format: CodeFormat
   secret: string
 }): CodeIdentifier => {
-  let subkey: Promise<CryptoKey> | undefined
+  const current = keyedDigest(options.secret, CODE_KEY_LABELS.current)
+  const legacy = keyedDigest(options.secret, CODE_KEY_LABELS.legacy)
 
   return async code => {
     const canonical = normalize(code, options.format)
 
     if (canonical === null) return null
 
-    subkey ??= deriveSubkey(options.secret)
+    const [scoped, unscoped] = await Promise.all([
+      current(`${options.format.name}:${canonical}`),
+      legacy(canonical)
+    ])
 
-    return toHex(await sign(await subkey, encoder.encode(canonical)))
+    return { current: scoped, legacy: unscoped }
   }
 }

@@ -48,11 +48,16 @@ describe('join returning a seat it could not use', () => {
 
   test('returns the seat when the vacant row could not be written', async () => {
     const failure = new Error('database unavailable')
-    const { instance, calls, resolveActor } = joinFake({})
+    const { instance, calls, actors } = joinFake({})
 
     await expect(
       join(
-        { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+        {
+          codeIdentifiers: ['identifier'],
+          actor: actors,
+          seatLifetime: null,
+          now: NOW
+        },
         { ...instance, enroll: () => Promise.reject(failure) }
       )
     ).rejects.toBe(failure)
@@ -88,11 +93,16 @@ describe('join racing what removes its membership', () => {
   })
 
   test('answers from a fresh read when the gate turns it down', async () => {
-    const { instance, resolveActor } = joinFake({ admits: false })
+    const { instance, actors } = joinFake({ admits: false, found: actor })
     const reads = [null, membership()]
 
     const outcome = await join(
-      { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+      {
+        codeIdentifiers: ['identifier'],
+        actor: actors,
+        seatLifetime: null,
+        now: NOW
+      },
       {
         ...instance,
         membership: () => Promise.resolve(reads.shift() ?? null)
@@ -108,11 +118,16 @@ describe('join racing what removes its membership', () => {
   })
 
   test('names the state a room moved to while the gate turned it down', async () => {
-    const { instance, resolveActor } = joinFake({ admits: false })
+    const { instance, actors } = joinFake({ admits: false })
     const reads = [room(), room({ status: 'locked' })]
 
     const outcome = await join(
-      { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+      {
+        codeIdentifiers: ['identifier'],
+        actor: actors,
+        seatLifetime: null,
+        now: NOW
+      },
       { ...instance, room: () => Promise.resolve(reads.shift() ?? null) }
     )
 
@@ -122,12 +137,17 @@ describe('join racing what removes its membership', () => {
 
 describe('join answering after the gate turned it down', () => {
   test('refuses a room that closed while the gate turned it down, even for a member', async () => {
-    const { instance, resolveActor } = joinFake({ admits: false })
+    const { instance, actors } = joinFake({ admits: false })
     const rooms = [room(), room({ status: 'closed' })]
     const reads = [null, membership()]
 
     const outcome = await join(
-      { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+      {
+        codeIdentifiers: ['identifier'],
+        actor: actors,
+        seatLifetime: null,
+        now: NOW
+      },
       {
         ...instance,
         room: () => Promise.resolve(rooms.shift() ?? null),

@@ -37,5 +37,8 @@ export const codeStore = (adapter: DBAdapter) => {
       }
     )
 
-  return { issueCode }
+  const taken = async (identifier: string) =>
+    (await codes.findOne(byIdentifier(identifier))) !== null
+
+  return { issueCode, taken }
 }

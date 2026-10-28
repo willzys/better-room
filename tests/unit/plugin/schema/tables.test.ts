@@ -69,7 +69,7 @@ test('honours a renamed model and renamed fields', async () => {
 
   db.chat_code.push({
     id: 'code-1',
-    identifier: await identify(code),
+    identifier: (await identify(code))?.current,
     chat_id: 'room-1',
     status: 'active',
     expiresAt: null,

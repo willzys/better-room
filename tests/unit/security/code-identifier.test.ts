@@ -10,16 +10,19 @@ const crockford = codeFormat('crockford')
 const short = codeFormat('crockford', 4)
 const numeric = codeFormat('numeric')
 
-const identify = (secret: string, format = crockford) =>
-  codeIdentifier({ format, secret })
+const identify = (secret: string, format = crockford) => {
+  const derive = codeIdentifier({ format, secret })
 
-const reference = (secret: string, canonical: string) =>
-  createHmac(
-    'sha256',
-    createHmac('sha256', secret).update('better-room:code:v1').digest()
-  )
-    .update(canonical)
+  return async (code: string) => (await derive(code))?.current ?? null
+}
+
+const hmac = (secret: string, label: string, message: string) =>
+  createHmac('sha256', createHmac('sha256', secret).update(label).digest())
+    .update(message)
     .digest('hex')
+
+const reference = (secret: string, canonical: string, format = 'crockford') =>
+  hmac(secret, 'better-room:code:v2', `${format}:${canonical}`)
 
 describe('codeIdentifier', () => {
   test.each([
@@ -31,7 +34,7 @@ describe('codeIdentifier', () => {
     'matches the reference for %s code %s',
     async (name, code, secret) => {
       expect(await identify(secret, codeFormat(name, code.length))(code)).toBe(
-        reference(secret, code)
+        reference(secret, code, name)
       )
     }
   )
@@ -106,7 +109,7 @@ describe('codeIdentifier subkey derivation', () => {
 
       await derive('ZZZZ9999')
 
-      expect(afterFirst).toBe(2)
+      expect(afterFirst).toBe(4)
       expect(imports()).toBe(afterFirst)
     })
   })
@@ -127,6 +130,24 @@ describe('codeIdentifier subkey derivation', () => {
     )
 
     expect(new Set(identifiers).size).toBe(1)
-    expect(identifiers[0]).toBe(reference('concurrent', code))
+    expect(identifiers[0]).toBe(reference('concurrent', code, 'numeric'))
+  })
+})
+
+describe('codeIdentifier across formats', () => {
+  test('separates the same digits under two formats', async () => {
+    const digits = codeFormat('crockford', 6)
+
+    expect(await identify('secret', numeric)('123456')).not.toBe(
+      await identify('secret', digits)('123456')
+    )
+  })
+
+  test('still names the identifier a code was stored under before formats were separated', async () => {
+    const identifiers = await codeIdentifier({ format: numeric, secret: 's' })(
+      '123456'
+    )
+
+    expect(identifiers?.legacy).toBe(hmac('s', 'better-room:code:v1', '123456'))
   })
 })

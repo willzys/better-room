@@ -9,6 +9,7 @@ import { MongoClient } from 'mongodb'
 import { betterRoom } from '@/plugin'
 
 import { SECRET } from '../helpers/auth'
+import { addressKey } from '../helpers/crypto'
 import { codeOf, onlyRow } from '../helpers/http'
 import { mongoAddress } from '../helpers/mongo'
 import { postgresDatabase } from '../helpers/postgres'
@@ -160,7 +161,7 @@ for (const [backend, generateId, start] of modes) {
       const counted = await rows(auth, 'roomAttempt')
 
       expect(new Set(counted.map(row => row.key))).toEqual(
-        new Set(['global', 'ip:203.0.113.7'])
+        new Set(['global', addressKey('203.0.113.7')])
       )
       expect(counted.map(row => row.count)).toEqual([2, 2])
     })

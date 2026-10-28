@@ -5,6 +5,7 @@ import { rotateCode } from '@/core/operations/codes/rotation'
 import { minter } from '@/plugin/codes/mint'
 import { rotationError } from '@/plugin/errors/refusals'
 import { isStoredId } from '@/plugin/http/identifiers'
+import { codeStore } from '@/plugin/stores/codes/code'
 import { rotationStore } from '@/plugin/stores/codes/rotation'
 
 import type { Signal } from '@/plugin/hooks/events'
@@ -35,7 +36,11 @@ export const rotateEndpoint = (deps: RotateDeps) =>
       const outcome = await rotateCode(
         {
           roomId: ctx.body.roomId,
-          mint: minter(deps.format, deps.identify(secret)),
+          mint: minter(
+            deps.format,
+            deps.identify(secret),
+            codeStore(adapter).taken
+          ),
           grace: deps.grace,
           now: new Date()
         },

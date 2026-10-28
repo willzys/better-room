@@ -16,31 +16,37 @@ import { erasureHooks } from '@/plugin/hooks/erasure'
 import { signOutHooks } from '@/plugin/hooks/sign-out'
 import { settingsOf } from '@/plugin/options'
 import { createRoomSchema } from '@/plugin/schema/tables'
+import { addressIdentifier } from '@/security/address-identifier'
 import { generate } from '@/security/code-format'
 import { codeIdentifier } from '@/security/code-identifier'
 
 import type { BetterAuthPlugin } from 'better-auth'
 
 import type { RoomOptions } from '@/plugin/options'
+import type { CodeFormat } from '@/security/code-format'
 import type { CodeIdentifier } from '@/security/code-identifier'
+import type { KeyedDigest } from '@/security/keyed-digest'
+
+const SWEEPABLE_WARNING =
+  'better-room room codes span fewer than a billion values, so a distributed sweep can find live rooms; turn on join.requireSession or lengthen code.length'
+
+const derivations = (format: CodeFormat) => {
+  let identifier: CodeIdentifier | undefined
+  let addresses: KeyedDigest | undefined
+
+  return {
+    identify: (secret: string) =>
+      (identifier ??= codeIdentifier({ format, secret })),
+    locate: (secret: string) => (addresses ??= addressIdentifier(secret))
+  }
+}
 
 export const betterRoom = (options?: RoomOptions) => {
-  const {
-    format,
-    grace,
-    grantLifetime,
-    overHttp,
-    requireSession,
-    perIp,
-    everyone,
-    signal
-  } = settingsOf(options)
+  const settings = settingsOf(options)
+  const { format, grace, overHttp, perIp, sweepable, signal } = settings
 
-  let identifier: CodeIdentifier | undefined
+  const { identify, locate } = derivations(format)
   let boundSecret: string | undefined
-
-  const identify = (secret: string) =>
-    (identifier ??= codeIdentifier({ format, secret }))
 
   return {
     id: 'better-room',
@@ -54,6 +60,8 @@ export const betterRoom = (options?: RoomOptions) => {
       boundSecret = context.secret
       await identify(context.secret)(generate(format))
 
+      if (sweepable) context.logger.warn(SWEEPABLE_WARNING)
+
       return {
         options: {
           databaseHooks: erasureHooks(context.adapter, signal, context.logger)
@@ -65,14 +73,7 @@ export const betterRoom = (options?: RoomOptions) => {
       getRoomAccess: accessEndpoint(),
       getRoomOccupancy: occupancyEndpoint(),
       createRoom: createEndpoint({ format, identify, overHttp, signal }),
-      joinRoom: joinEndpoint({
-        identify,
-        grantLifetime,
-        requireSession,
-        perIp,
-        everyone,
-        signal
-      }),
+      joinRoom: joinEndpoint({ ...settings, identify, locate }),
       leaveRoom: leaveEndpoint(signal),
       listRoomMemberships: membershipsEndpoint(),
       promoteRoomActor: promoteEndpoint(signal),

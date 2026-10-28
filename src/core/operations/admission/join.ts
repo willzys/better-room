@@ -1,18 +1,19 @@
+import { seatDeadline, unlapsed } from '@/core/actor'
 import { membershipRefusal } from '@/core/membership'
 import { remains, seat } from '@/core/operations/admission/seating'
-import { roomRefusal } from '@/core/room'
+import { isFull, roomRefusal } from '@/core/room'
 import { isResolvable } from '@/core/room-code'
 
-import type { Actor } from '@/core/actor'
+import type { Actor, ActorSource } from '@/core/actor'
 import type { Membership, MembershipRefusal } from '@/core/membership'
 import type { SeatingStore, Terms } from '@/core/operations/admission/seating'
 import type { Room, RoomRefusal } from '@/core/room'
 import type { RoomCode } from '@/core/room-code'
-import type { Absent, Usable } from '@/types/absence'
-
-const JOINED: Terms = { role: 'participant', expiresAt: null }
+import type { Absent, Unbounded, Usable } from '@/types/absence'
 
 const JOINABLE = ['active'] as const
+
+const KEPT: Terms = { role: 'participant', expiresAt: null }
 
 const JOIN_ATTEMPTS = 3
 
@@ -25,7 +26,7 @@ export type JoinRefusal =
   | 'unresolved'
 
 export type JoinStore = SeatingStore & {
-  readonly code: (identifier: string) => Promise<Usable<RoomCode>>
+  readonly code: (identifiers: readonly string[]) => Promise<Usable<RoomCode>>
   readonly room: (id: string) => Promise<Usable<Room>>
   readonly membership: (
     roomId: string,
@@ -34,8 +35,9 @@ export type JoinStore = SeatingStore & {
 }
 
 export type JoinRequest = {
-  readonly codeIdentifier: string
-  readonly actor: () => Promise<Actor>
+  readonly codeIdentifiers: readonly string[]
+  readonly actor: ActorSource
+  readonly seatLifetime: Unbounded<number>
   readonly now: Date
 }
 
@@ -51,6 +53,7 @@ export type JoinOutcome =
 type Joining = {
   readonly room: Room
   readonly actor: Actor
+  readonly terms: Terms
   readonly now: Date
   readonly store: JoinStore
 }
@@ -98,9 +101,9 @@ const seated = async (
   joining: Joining,
   existing: Usable<Membership>
 ): Promise<JoinOutcome | Absent> => {
-  const { room, actor, now, store } = joining
+  const { room, actor, terms, now, store } = joining
   const taken = await seat(
-    { room, actor, terms: JOINED, existing, returning: 'rejoin' },
+    { room, actor, terms, existing, returning: 'rejoin' },
     store
   )
   const survives = await remains(actor, now, store)
@@ -118,10 +121,11 @@ const seated = async (
 
 const seating = async (
   joining: Joining,
-  attempts: number
+  attempts: number,
+  created = false
 ): Promise<JoinOutcome> => {
   const { room, actor, store } = joining
-  const existing = await store.membership(room.id, actor.id)
+  const existing = created ? null : await store.membership(room.id, actor.id)
   const settled = existing === null ? null : settledBy(joining, existing)
 
   if (settled !== null) return settled
@@ -138,11 +142,45 @@ const seating = async (
   return seating(joining, attempts - 1)
 }
 
+const throughLock = async (
+  request: JoinRequest,
+  room: Room,
+  store: JoinStore
+): Promise<JoinOutcome> => {
+  const actor = await request.actor.find()
+
+  if (actor === null) return refuse('locked')
+
+  const held = await store.membership(room.id, actor.id)
+  const joining = { room, actor, terms: KEPT, now: request.now, store }
+  const settled = held === null ? null : settledBy(joining, held)
+
+  return settled?.admitted === true ? settled : refuse('locked')
+}
+
+const entering = async (
+  request: JoinRequest,
+  room: Room,
+  store: JoinStore
+): Promise<JoinOutcome> => {
+  const { now, seatLifetime } = request
+  const found = unlapsed(await request.actor.find(), seatLifetime, now)
+
+  if (found === null && isFull(room)) return refuse('at-capacity')
+
+  const actor = found ?? (await request.actor.create())
+  const expiresAt = seatDeadline(actor, seatLifetime)
+  const terms = { ...KEPT, expiresAt }
+  const joining = { room, actor, terms, now, store }
+
+  return seating(joining, JOIN_ATTEMPTS, found === null)
+}
+
 export const join = async (
   request: JoinRequest,
   store: JoinStore
 ): Promise<JoinOutcome> => {
-  const code = await store.code(request.codeIdentifier)
+  const code = await store.code(request.codeIdentifiers)
 
   if (code === null || !isResolvable(code, request.now)) {
     return refuse('unresolved')
@@ -154,9 +192,8 @@ export const join = async (
 
   const refusal = roomRefusal(room, request.now)
 
+  if (refusal === 'locked') return throughLock(request, room, store)
   if (refusal !== null) return refuse(refusal)
 
-  const actor = await request.actor()
-
-  return seating({ room, actor, now: request.now, store }, JOIN_ATTEMPTS)
+  return entering(request, room, store)
 }

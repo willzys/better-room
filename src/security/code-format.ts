@@ -1,6 +1,6 @@
 import type { Usable } from '@/types/absence'
 
-const CODE = {
+export const CODE = {
   minLength: 1,
   maxLength: 64,
   maxInput: 1024,
@@ -21,6 +21,7 @@ export const isCodeFormatName = (value: unknown): value is CodeFormatName =>
   CODE_FORMAT_NAMES.some(name => name === value)
 
 export type CodeFormat = {
+  readonly name: CodeFormatName
   readonly symbols: string
   readonly length: number
   readonly canonicalize: (input: string) => Usable<string>
@@ -91,6 +92,7 @@ export const codeFormat = (
   }
 
   return {
+    name,
     symbols: spec.symbols,
     length: resolved,
     canonicalize: canonicalizerOf(spec)
@@ -111,6 +113,11 @@ export const codeFormatOf = (name: unknown, length: unknown) => {
 
   return codeFormat(resolved, length)
 }
+
+const SWEEPABLE_SPACE = 1_000_000_000
+
+export const isSweepable = (format: CodeFormat) =>
+  format.symbols.length ** format.length < SWEEPABLE_SPACE
 
 export const normalize = (
   input: string,

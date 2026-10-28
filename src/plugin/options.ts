@@ -1,6 +1,6 @@
 import { isObject, signalOf } from '@/plugin/hooks/events'
 import { MAX_STORED_INTEGER } from '@/plugin/schema/tables'
-import { codeFormatOf } from '@/security/code-format'
+import { codeFormatOf, isSweepable } from '@/security/code-format'
 
 import type { RoomHooks } from '@/plugin/hooks/events'
 import type { RoomSchemaOption } from '@/plugin/schema/tables'
@@ -79,11 +79,15 @@ export type RoomOptions = {
   }
   readonly join?: {
     readonly requireSession?: boolean
+    readonly concealRefusals?: boolean
+    readonly expireAnonymousSeats?: boolean
   }
   readonly attempts?: {
     readonly window?: number
     readonly perIp?: number
     readonly everyone?: number
+    readonly progressive?: boolean
+    readonly reserve?: boolean
   }
   readonly schema?: RoomSchemaOption
   readonly hooks?: RoomHooks
@@ -100,8 +104,8 @@ const GROUPS = {
   code: ['format', 'length', 'grace'],
   grant: ['lifetime'],
   creation: ['overHttp'],
-  join: ['requireSession'],
-  attempts: ['window', 'perIp', 'everyone']
+  join: ['requireSession', 'concealRefusals', 'expireAnonymousSeats'],
+  attempts: ['window', 'perIp', 'everyone', 'progressive', 'reserve']
 } as const satisfies {
   readonly [Group in keyof Grouped]: readonly (keyof Grouped[Group])[]
 }
@@ -138,7 +142,9 @@ const limitsOf = (attempts: Record<string, unknown>) => {
 
   return {
     perIp: { window, max: perIp },
-    everyone: { window, max: everyone }
+    everyone: { window, max: everyone },
+    progressive: flagOf(attempts.progressive, 'attempts progressive'),
+    reserve: flagOf(attempts.reserve, 'attempts reserve')
   }
 }
 
@@ -162,10 +168,12 @@ const rootOf = (options: unknown) => {
 export const settingsOf = (options?: RoomOptions) => {
   const given = rootOf(options)
   const code = groupOf(given.code, 'code', GROUPS.code)
+  const format = codeFormatOf(code.format, code.length)
   const join = groupOf(given.join, 'join', GROUPS.join)
+  const requireSession = flagOf(join.requireSession, 'join require session')
 
   return {
-    format: codeFormatOf(code.format, code.length),
+    format,
     grace: boundedInteger(code.grace, BOUNDS.grace),
     grantLifetime: boundedInteger(
       groupOf(given.grant, 'grant', GROUPS.grant).lifetime,
@@ -175,7 +183,13 @@ export const settingsOf = (options?: RoomOptions) => {
       groupOf(given.creation, 'creation', GROUPS.creation).overHttp,
       'creation over http'
     ),
-    requireSession: flagOf(join.requireSession, 'join require session'),
+    requireSession,
+    concealRefusals: flagOf(join.concealRefusals, 'join conceal refusals'),
+    expireAnonymousSeats: flagOf(
+      join.expireAnonymousSeats,
+      'join expire anonymous seats'
+    ),
+    sweepable: !requireSession && isSweepable(format),
     signal: signalOf(given.hooks),
     ...limitsOf(groupOf(given.attempts, 'attempts', GROUPS.attempts))
   }
