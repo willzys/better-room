@@ -13,6 +13,7 @@ import { revokeEndpoint } from '@/plugin/endpoints/post/revoke'
 import { rotateEndpoint } from '@/plugin/endpoints/post/rotate'
 import { ROOM_ERROR_CODES } from '@/plugin/errors/codes'
 import { erasureHooks } from '@/plugin/hooks/erasure'
+import { signOutHooks } from '@/plugin/hooks/sign-out'
 import { settingsOf } from '@/plugin/options'
 import { createRoomSchema } from '@/plugin/schema/tables'
 import { generate } from '@/security/code-format'
@@ -83,6 +84,7 @@ export const betterRoom = (options?: RoomOptions) => {
       reconcileRoomCapacity: reconcileEndpoint(signal),
       pruneRoomAttempts: pruneEndpoint(perIp.window)
     },
+    hooks: signOutHooks(),
     schema: createRoomSchema(options?.schema),
     $ERROR_CODES: ROOM_ERROR_CODES
   } satisfies BetterAuthPlugin
