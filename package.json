@@ -42,7 +42,7 @@
     "format": "bun scripts/check.ts format",
     "format:check": "bun scripts/check.ts format --check",
     "prepare": "simple-git-hooks",
-    "prepublish": "yarn build",
+    "prepublishOnly": "yarn build",
     "test": "bun test",
     "test:unit": "bun test tests/unit",
     "test:integration": "bun test tests/integration",
@@ -113,6 +113,9 @@
   },
   "simple-git-hooks": {
     "commit-msg": "yarn commitlint --edit \"$1\""
+  },
+  "engines": {
+    "node": ">=22"
   },
   "packageManager": "yarn@4.14.1"
 }
