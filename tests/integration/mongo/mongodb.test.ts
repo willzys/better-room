@@ -16,7 +16,8 @@ const DECLARED = {
   roomMember: [
     'room_member_room_actor_uidx',
     'room_member_actor_idx',
-    'room_member_expires_at_idx'
+    'room_member_expires_at_idx',
+    'room_member_revoked_at_idx'
   ],
   roomAttempt: ['room_attempt_key_uidx', 'room_attempt_last_attempt_at_idx']
 } as const

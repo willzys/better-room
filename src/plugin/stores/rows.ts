@@ -42,7 +42,7 @@ export type AttemptRow = Omit<Attempt, 'startedAt'> & {
   id: string
   lastAttemptAt: Date
 }
-export type UserRow = { id: string }
+export type UserRow = { id: string; name: string }
 
 export type ActorInput = Pick<Actor, 'userId'>
 export type RoomInput = Pick<Room, 'createdBy' | 'maxMembers' | 'expiresAt'>

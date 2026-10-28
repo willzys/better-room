@@ -9,6 +9,7 @@ import type { RevocationRefusal } from '@/core/operations/capacity/revocation'
 import type { RotationRefusal } from '@/core/operations/codes/rotation'
 import type { NamingRefusal } from '@/core/operations/identity/naming'
 import type { PromotionRefusal } from '@/core/operations/identity/promotion'
+import type { MembersRefusal } from '@/core/operations/reads/members'
 import type { OccupancyRefusal } from '@/core/operations/reads/occupancy'
 import type { CreationRefusal } from '@/core/operations/rooms/creation'
 import type { LifecycleRefusal } from '@/core/operations/rooms/lifecycle'
@@ -76,6 +77,11 @@ export const additionError = refusing<AdditionRefusal>({
 })
 
 export const occupancyError = refusing<OccupancyRefusal>({
+  'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
+  'not-a-member': ['FORBIDDEN', ROOM_ERROR_CODES.NOT_A_MEMBER]
+})
+
+export const membersError = refusing<MembersRefusal>({
   'unknown-room': ['NOT_FOUND', ROOM_ERROR_CODES.UNKNOWN_ROOM],
   'not-a-member': ['FORBIDDEN', ROOM_ERROR_CODES.NOT_A_MEMBER]
 })
