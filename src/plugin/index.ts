@@ -12,6 +12,7 @@ import { pruneEndpoint } from '@/plugin/endpoints/post/prune'
 import { reconcileEndpoint } from '@/plugin/endpoints/post/reconcile'
 import { recountEndpoint } from '@/plugin/endpoints/post/recount'
 import { renameEndpoint } from '@/plugin/endpoints/post/rename'
+import { retireEndpoint } from '@/plugin/endpoints/post/retire'
 import { revokeEndpoint } from '@/plugin/endpoints/post/revoke'
 import { rotateEndpoint } from '@/plugin/endpoints/post/rotate'
 import { ROOM_ERROR_CODES } from '@/plugin/errors/codes'
@@ -89,7 +90,8 @@ export const betterRoom = (options?: RoomOptions) => {
       closeRoom: lifecycleEndpoint('close', signal),
       reconcileRoomCapacity: reconcileEndpoint(signal),
       recountRoomCapacity: recountEndpoint(),
-      pruneRoomAttempts: pruneEndpoint(perIp.window)
+      pruneRoomAttempts: pruneEndpoint(perIp.window),
+      retireRoomCodes: retireEndpoint()
     },
     hooks: signOutHooks(),
     schema: createRoomSchema(options?.schema),

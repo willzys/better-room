@@ -21,6 +21,7 @@ export type {
   PruningReport,
   RecountReport,
   ReconciliationReport,
+  RetirementReport,
   RoomReport
 } from '@/plugin/http/report'
 export type { RoomEvent, RoomEventOf, RoomHooks } from '@/plugin/hooks/events'
