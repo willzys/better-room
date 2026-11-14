@@ -9,6 +9,7 @@ import {
   unknownActorError
 } from '@/plugin/errors/refusals'
 import { membershipReport } from '@/plugin/http/report'
+import { LATEST_STORED_DATE } from '@/plugin/schema/tables'
 import { additionStore } from '@/plugin/stores/admission/addition'
 import { actorStore } from '@/plugin/stores/identity/actor'
 
@@ -31,6 +32,7 @@ const addBody = z.object({
     .meta({ description: 'The role the membership carries, named by the app' }),
   expiresAt: z.coerce
     .date()
+    .max(LATEST_STORED_DATE)
     .optional()
     .meta({ description: 'When the membership expires, never when absent' })
 })

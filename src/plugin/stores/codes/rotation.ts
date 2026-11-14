@@ -8,16 +8,9 @@ import type { DBAdapter } from 'better-auth/types'
 import type { RotationStore } from '@/core/operations/codes/rotation'
 import type { CodeRow } from '@/plugin/stores/rows'
 
-const ACTIVE_CODES = { page: 100 } as const
-
-const batches = (identifiers: string[]) =>
-  Array.from(
-    { length: Math.ceil(identifiers.length / ACTIVE_CODES.page) },
-    (_, index) =>
-      identifiers.slice(
-        index * ACTIVE_CODES.page,
-        (index + 1) * ACTIVE_CODES.page
-      )
+const batches = (identifiers: string[], page: number) =>
+  Array.from({ length: Math.ceil(identifiers.length / page) }, (_, index) =>
+    identifiers.slice(index * page, (index + 1) * page)
   )
 
 export const rotationStore = (adapter: DBAdapter): RotationStore => {
@@ -25,21 +18,22 @@ export const rotationStore = (adapter: DBAdapter): RotationStore => {
 
   const collectActive = async (
     roomId: string,
+    page: number,
     collected: string[]
   ): Promise<string[]> => {
-    const page = await codes.findMany({
+    const found = await codes.findMany({
       where: [
         { field: 'roomId', value: roomId },
         { field: 'status', value: 'active' },
         ...beyond<CodeRow>('identifier', collected.at(-1) ?? null)
       ],
       sortBy: { field: 'identifier', direction: 'asc' },
-      limit: ACTIVE_CODES.page
+      limit: page
     })
-    const identifiers = [...collected, ...page.map(row => row.identifier)]
-    return page.length < ACTIVE_CODES.page
+    const identifiers = [...collected, ...found.map(row => row.identifier)]
+    return found.length < page
       ? identifiers
-      : collectActive(roomId, identifiers)
+      : collectActive(roomId, page, identifiers)
   }
 
   const retireGrace = async (roomId: string, at: Date) => {
@@ -55,10 +49,11 @@ export const rotationStore = (adapter: DBAdapter): RotationStore => {
   const demoteOthers = async (
     roomId: string,
     identifiers: string[],
-    until: Date
+    until: Date,
+    page: number
   ) => {
     await Promise.all(
-      batches(identifiers).map(batch =>
+      batches(identifiers, page).map(batch =>
         codes.updateMany({
           where: [
             { field: 'roomId', value: roomId },
@@ -75,7 +70,7 @@ export const rotationStore = (adapter: DBAdapter): RotationStore => {
     ...codeStore(adapter),
     room: roomLookup(adapter),
     retireGrace,
-    activeCodes: roomId => collectActive(roomId, []),
+    activeCodes: (roomId, page) => collectActive(roomId, page, []),
     demoteOthers
   }
 }

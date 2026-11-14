@@ -8,6 +8,8 @@ import { onlyRow } from '../../../helpers/http'
 import { empty, seedRoom } from '../../../helpers/memory'
 import { adapterFor, codeRow } from '../../../helpers/stores'
 
+import type { Tables } from '../../../helpers/memory'
+
 describe('adapter errors at the store boundary', () => {
   test('propagates an insertion failure when no code collision can be confirmed', async () => {
     const adapter = adapterFor()
@@ -128,6 +130,14 @@ describe('a code that belongs to another room', () => {
   })
 })
 
+const demoted = (db: Tables, identifiers: string[]) =>
+  rotationStore(adapterFor(db)).demoteOthers(
+    'room-1',
+    identifiers,
+    new Date(NOW.getTime() + 120_000),
+    100
+  )
+
 describe('demoting the codes a rotation replaced', () => {
   test('demotes only the codes it was handed', async () => {
     const db = empty()
@@ -138,11 +148,7 @@ describe('demoting the codes a rotation replaced', () => {
       codeRow('newer', later)
     )
 
-    await rotationStore(adapterFor(db)).demoteOthers(
-      'room-1',
-      ['older'],
-      new Date(NOW.getTime() + 120_000)
-    )
+    await demoted(db, ['older'])
 
     const status = new Map(
       db.roomCode.map(row => [row.identifier, row.status] as const)
@@ -163,12 +169,8 @@ describe('demoting the codes a rotation replaced', () => {
     )
     const store = rotationStore(adapterFor(db))
 
-    const active = await store.activeCodes('room-1')
-    await store.demoteOthers(
-      'room-1',
-      active,
-      new Date(NOW.getTime() + 120_000)
-    )
+    const active = await store.activeCodes('room-1', 100)
+    await demoted(db, active)
 
     expect(active).toEqual(identifiers)
     expect(db.roomCode.every(row => row.status === 'grace')).toBe(true)
@@ -181,11 +183,7 @@ describe('demoting the codes a rotation replaced', () => {
       roomId: 'room-2'
     })
 
-    await rotationStore(adapterFor(db)).demoteOthers(
-      'room-1',
-      ['mine', 'elsewhere'],
-      new Date(NOW.getTime() + 120_000)
-    )
+    await demoted(db, ['mine', 'elsewhere'])
 
     const status = new Map(
       db.roomCode.map(row => [row.identifier, row.status] as const)

@@ -134,6 +134,11 @@ export const unknownActorError = failing(
   ROOM_ERROR_CODES.UNKNOWN_ACTOR
 )
 
+export const unknownUserError = failing(
+  'NOT_FOUND',
+  ROOM_ERROR_CODES.UNKNOWN_USER
+)
+
 export const unknownRoomError = failing(
   'NOT_FOUND',
   ROOM_ERROR_CODES.UNKNOWN_ROOM

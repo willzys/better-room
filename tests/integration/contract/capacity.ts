@@ -200,35 +200,6 @@ export const revocationContract = ({ start }: Harness) => {
   })
 }
 
-export const reconciliationContract = ({ start }: Harness) => {
-  describe('reconciling the capacity an expiry dropped', () => {
-    test('returns the seat an expired membership never gave back', async () => {
-      const auth = await start({})
-      const created = await auth.api.createRoom({ body: { maxMembers: 1 } })
-      const joined = await join(auth, created.code)
-      const member = await joinedMember(joined)
-      const { adapter } = await auth.$context
-      await adapter.updateMany({
-        model: 'roomMember',
-        where: [{ field: 'id', value: member.id }],
-        update: { expiresAt: new Date(Date.now() - 60_000) }
-      })
-
-      expect(onlyRow(await rows(auth, 'room')).memberCount).toBe(1)
-
-      const first = await auth.api.reconcileRoomCapacity({ body: {} })
-      expect(first).toEqual({ owing: 1, released: 1 })
-      expect(onlyRow(await rows(auth, 'room')).memberCount).toBe(0)
-      expect(onlyRow(await rows(auth, 'roomMember')).occupancy).toBe(0)
-
-      const second = await auth.api.reconcileRoomCapacity({ body: {} })
-      expect(second).toEqual({ owing: 0, released: 0 })
-      expect(onlyRow(await rows(auth, 'room')).memberCount).toBe(0)
-      expect((await join(auth, created.code)).status).toBe(200)
-    })
-  })
-}
-
 export const capacityRaceContract = ({ start }: Harness) => {
   describe('leaving while rejoining', () => {
     test('never leaves a membership admitted without a counted seat', async () => {

@@ -96,6 +96,7 @@ describe('betterRoom accepting a usable code', () => {
         'closeRoom',
         'createRoom',
         'lockRoom',
+        'pruneRoomAttempts',
         'reconcileRoomCapacity',
         'revokeRoomMember',
         'unlockRoom',
@@ -168,5 +169,54 @@ describe('the hooks option', () => {
     expect(() =>
       Reflect.apply(betterRoom, undefined, [{ onChange: () => undefined }])
     ).toThrow(new TypeError('onChange was replaced by hooks.onEvent'))
+  })
+})
+
+describe('the option groups', () => {
+  test.each(['code', 'grant', 'creation', 'join', 'attempts'])(
+    'refuses a %s group that is not an object',
+    group => {
+      for (const value of [true, 'true', 1, null, []]) {
+        expect(() =>
+          Reflect.apply(betterRoom, undefined, [{ [group]: value }])
+        ).toThrow(new TypeError(`${group} must be an object`))
+      }
+    }
+  )
+
+  test.each([null, 'true', 1])('refuses %p as the options', options => {
+    expect(() => Reflect.apply(betterRoom, undefined, [options])).toThrow(
+      new TypeError('better-room options must be an object')
+    )
+  })
+
+  test('refuses a null value instead of falling back to its default', () => {
+    const nulls = [
+      [{ grant: { lifetime: null } }, RangeError],
+      [{ code: { grace: null } }, RangeError],
+      [{ attempts: { window: null } }, RangeError],
+      [{ code: { format: null } }, TypeError],
+      [{ code: { length: null } }, TypeError],
+      [{ creation: { overHttp: null } }, TypeError]
+    ] as const
+
+    for (const [options, error] of nulls) {
+      expect(() => Reflect.apply(betterRoom, undefined, [options])).toThrow(
+        error
+      )
+    }
+  })
+
+  test('accepts empty groups and explicit undefined values', () => {
+    expect(() =>
+      Reflect.apply(betterRoom, undefined, [
+        {
+          code: {},
+          grant: { lifetime: undefined },
+          join: {},
+          attempts: { window: undefined }
+        }
+      ])
+    ).not.toThrow()
   })
 })

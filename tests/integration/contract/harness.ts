@@ -1,3 +1,5 @@
+import { getAdapter } from 'better-auth/db/adapter'
+
 import {
   jarOf,
   joinedMember,
@@ -5,7 +7,7 @@ import {
   stringField
 } from '../../helpers/http'
 
-import type { DBAdapter } from 'better-auth/types'
+import type { BetterAuthOptions, DBAdapter } from 'better-auth/types'
 
 import type { RoomOptions } from '@/plugin/options'
 
@@ -13,6 +15,7 @@ import type { memoryAuth, Row, Table } from '../../helpers/memory'
 
 export type Auth = {
   api: ReturnType<typeof memoryAuth>['api']
+  options: BetterAuthOptions
   $context: Promise<{
     adapter: Pick<
       DBAdapter,
@@ -25,6 +28,8 @@ export type Harness = {
   start: (options?: RoomOptions) => Promise<Auth>
   uniqueViolation: { code: string | number } | { cause: { code: string } }
 }
+
+export const adapterOf = (auth: Auth) => getAdapter(auth.options)
 
 export const rows = async (auth: Auth, model: Table) =>
   (await auth.$context).adapter.findMany<Row>({ model, limit: 1_000_000 })

@@ -35,6 +35,7 @@ Four ways applications handle it, in rough order of how often they fit:
 | `unlockRoom` | none | `auth.api` only |
 | `closeRoom` | none | `auth.api` only |
 | `reconcileRoomCapacity` | none | `auth.api` only |
+| `pruneRoomAttempts` | none | `auth.api` only |
 
 Administrative operations are server-only on purpose. The plugin has no permission engine and roles are an open set of opaque strings, so it cannot know which of your roles may rotate a code or add a member. That decision stays in your backend, where quota, plan and workspace policy already live.
 
@@ -54,7 +55,7 @@ const { room, code } = await auth.api.createRoom({
 })
 ```
 
-Over HTTP, with `creation.overHttp` on, the caller must hold a session and is recorded as the creator; `userId` is ignored there. `maxMembers` is a positive integer, and an `expiresAt` that is not in the future is refused as `ROOM_EXPIRES_IN_THE_PAST` before anything is written. When no free code can be issued the room is removed again and the call answers `CODE_SPACE_EXHAUSTED`, so a refused creation leaves nothing behind.
+On the server, a `userId` must name an existing user and is refused as `UNKNOWN_USER` otherwise, before anything is written. Over HTTP, with `creation.overHttp` on, the caller must hold a session and is recorded as the creator; `userId` is ignored there. `maxMembers` is a positive integer, and an `expiresAt` that is not in the future is refused as `ROOM_EXPIRES_IN_THE_PAST` before anything is written, the creator's actor included. An `expiresAt` after `9999-12-31T23:59:59.999Z` is refused as `VALIDATION_ERROR`, since no supported database orders a later one correctly. When no free code can be issued the room is removed again and the call answers `CODE_SPACE_EXHAUSTED`; only the creator's actor may remain, and the next creation or join of that user reuses it.
 
 A newly created room has no members at all. `room.createdBy` records which actor opened it and grants no authority inside it: there is no host here, only the roles your application names. It does make the creator related to the room, so a room created over HTTP stays readable through `getRoomAccess` by the caller who opened it, although that caller holds no membership there.
 
@@ -100,7 +101,7 @@ if (error) throw new Error(error.message)
 const { occupied, maxMembers } = data
 ```
 
-`occupied` is the number of memberships that hold the room right now: joined, not left, not revoked and not past their own deadline. It is counted from the memberships themselves, so it is exact, unlike `room.memberCount`, which is the admission gate and may sit above real occupancy after a departure that failed halfway. Show `occupied`, not `memberCount`, as the number of people in a room.
+`occupied` is the number of memberships that hold the room right now: joined, not left, not revoked and not past their own deadline. It is counted from the memberships themselves, so it is exact once concurrent changes settle, unlike `room.memberCount`, which is the admission gate and may sit above real occupancy after a departure that failed halfway. Show `occupied`, not `memberCount`, as the number of people in a room. It is read as two counts, one for memberships without a deadline and one for those with a future deadline, so a membership that leaves and is readmitted between them can be counted twice or not at all for that one read.
 
 It counts memberships, not presence. Someone who joined and closed the tab days ago still occupies the room until they leave, are revoked or expire; who is online right now belongs to your own realtime transport.
 
@@ -152,7 +153,7 @@ const { membership } = await auth.api.addRoomMember({
 
 Name the member by exactly one of `userId` or `actorId`; both or neither is a `BAD_REQUEST`. `userId` resolves that user's actor and creates it when there is none. `actorId` resolves nothing and is refused as `UNKNOWN_ACTOR` when no such actor exists.
 
-An optional `expiresAt` gives the membership its own deadline, and one that is not in the future is refused as `MEMBERSHIP_EXPIRES_IN_THE_PAST`. Addition takes a seat like a join and is refused when the room is full, closed or expired, but not when it is locked: locking stops codes, not your backend. An actor who still holds a membership there is refused as `ALREADY_A_MEMBER`, and one whose membership was revoked as `MEMBERSHIP_REVOKED`, since revocation is permanent. An actor who left is readmitted on the same membership: it takes a seat again and carries the role and `expiresAt` this call names, not the ones it had before.
+An optional `expiresAt` gives the membership its own deadline, and one that is not in the future is refused as `MEMBERSHIP_EXPIRES_IN_THE_PAST`. One after `9999-12-31T23:59:59.999Z` is refused as `VALIDATION_ERROR`, as it is for a room. Addition takes a seat like a join and is refused when the room is full, closed or expired, but not when it is locked: locking stops codes, not your backend. An actor who still holds a membership there is refused as `ALREADY_A_MEMBER`, and one whose membership was revoked as `MEMBERSHIP_REVOKED`, since revocation is permanent. An actor who left is readmitted on the same membership: it takes a seat again and carries the role and `expiresAt` this call names, not the ones it had before.
 
 An elevated role can only come from server-side addition, never from presenting a code. That is what keeps discovery and privilege separate.
 
@@ -204,7 +205,7 @@ const { owing, released } = await auth.api.reconcileRoomCapacity({
 })
 ```
 
-Locking refuses joins by code and keeps the memberships already in place; `addRoomMember` still adds to a locked room. Closing ends the room and cannot be undone. Lock, unlock and close each return `{ room }`, and asking for the state a room already has succeeds without a write. Reconciling runs in bounded batches of `batch` memberships, 200 when absent, so a schedule can call it repeatedly until `owing` comes back `0`. It collects memberships that still hold a seat while no longer occupying one: a deadline that passed, and a revocation that marked its membership but stopped before returning the seat. A departure needs no collecting, because leaving marks the membership and gives up its seat in one write.
+Locking refuses joins by code and keeps the memberships already in place; `addRoomMember` still adds to a locked room. Closing ends the room and cannot be undone. Lock, unlock and close each return `{ room }`, and asking for the state a room already has succeeds without a write. Reconciling runs in bounded batches of `batch` memberships, 200 when absent, so a schedule can call it repeatedly until `owing` comes back `0`. It collects memberships that still hold a seat while no longer occupying one: a deadline that passed, and a revocation that marked its membership but stopped before returning the seat. A departure needs no collecting, because leaving marks the membership and gives up its seat in one write. A seat is taken back only while its membership still owes it when the write lands, so a membership readmitted after a batch was read keeps its seat.
 
 Concurrent requests never move the counter away from real occupancy: two joins of one actor, a join racing a revocation, a lock or a user deletion all settle with `memberCount` equal to the seats held. Only a write that fails partway can leave it above, when the connection drops or the process stops between two writes: after taking a seat and before writing the membership that holds it, or after a membership gave up its seat and before the room's counter was lowered. Reconciling recollects what a membership still owes; in both of those cases no membership is marked as owing anything, so the seat stays counted. Drift in that direction refuses a free seat rather than admitting past the limit, which is the direction the gate is built to fail in.
 
@@ -244,7 +245,7 @@ betterRoom({
 })
 ```
 
-The numeric options below are checked when the plugin is constructed, so a value outside its range throws a `RangeError` from `betterRoom()` rather than surfacing later on the request that first uses it. `creation.overHttp` and `join.requireSession` must be real booleans, so a JavaScript caller passing `'false'` gets a `TypeError` instead of an enabled flag. `code.format` must name a known format, and `hooks` must be an object whose keys are hook names and whose values are functions; anything else is a `TypeError` too, so a misspelled hook such as `onJoin` fails at construction instead of silently falling through to `onEvent`. Passing the removed `onChange` throws a `TypeError` that points at `hooks.onEvent`. An `additionalFields` entry named after a field the plugin owns, such as `occupancy` or `id`, throws a `TypeError` too, because it would silently replace the plugin's definition; a renamed table or a malformed field of your own still surfaces through Better Auth's schema handling.
+The numeric options below are checked when the plugin is constructed, so a value outside its range throws a `RangeError` from `betterRoom()` rather than surfacing later on the request that first uses it. `creation.overHttp` and `join.requireSession` must be real booleans, so a JavaScript caller passing `'false'` gets a `TypeError` instead of an enabled flag. Each group, `code`, `grant`, `creation`, `join` and `attempts`, must be an object when given, and only an absent value takes its default, so `null` is refused like any other wrong type. `code.format` must name a known format, and `hooks` must be an object whose keys are hook names and whose values are functions; anything else is a `TypeError` too, so a misspelled hook such as `onJoin` fails at construction instead of silently falling through to `onEvent`. Passing the removed `onChange` throws a `TypeError` that points at `hooks.onEvent`. An `additionalFields` entry named after a field the plugin owns, such as `occupancy` or `id`, throws a `TypeError` too, because it would silently replace the plugin's definition. So does a renamed field, or an additional field's `fieldName`, that lands on a column another field of the same table already uses, `id` included, since two fields would then read and write one column; a renamed table or a malformed field of your own still surfaces through Better Auth's schema handling.
 
 Each duration has a ceiling as well as a floor, because a value large enough to overflow date arithmetic yields an invalid date, every comparison against it is false, and the mechanism it configures stops working while still looking configured. An attempt window past its ceiling would stop counting attempts at all.
 
@@ -266,6 +267,14 @@ Call `betterRoom()` once per `betterAuth()` instance. The code subkey is derived
 ### Brute force
 
 A failed code is counted twice: against the caller's address and against a global budget. An address that spends its own ceiling is refused until its window rolls over. The global ceiling only gates an address that has a failure of its own on record, so a flood cannot lock out callers who never guessed anything. There is no per-room lockout, because that would let anyone who knows a room exists lock its members out of it.
+
+A failure that finishes after a later one is still counted and never moves its budget's window back. A server whose clock runs behind the others therefore cannot shorten a lockout, while one whose clock runs ahead lengthens it.
+
+```ts
+const { pruned, complete } = await auth.api.pruneRoomAttempts()
+```
+
+A budget whose window has passed is removed when its own address fails again, but the global budget never rests under steady traffic, so addresses that tried once and never returned stay in `roomAttempt`. `pruneRoomAttempts` removes every budget past `attempts.window` in bounded pages and leaves alone one that fails again while it runs. Schedule it alongside `reconcileRoomCapacity`; when it answers `complete: false`, call it again.
 
 Every failure to resolve a code is the same `CODE_DID_NOT_RESOLVE`, whether the code never existed, fell out of its grace window or was revoked. Distinguishing them would answer "is this code live?" without entering the room and without any side effect of joining, which roughly halves the work of sweeping the code space.
 
@@ -357,7 +366,7 @@ Exactly one hook runs per event. When the event's own hook is given, only it run
 | `promoted` | `onPromoted` | `actorId`, `merged` | an anonymous actor was merged into `actorId` |
 | `erased` | `onErased` | `actorId` | the actor of a deleted user was erased |
 
-`membership` and `room` are the same reports the endpoints return. Every hook receives the whole event, `type` included, typed to the one it is named after: `onJoined` gets `RoomEventOf<'joined'>`, so `event.membership` needs no narrowing, while `onEvent` gets the `RoomEvent` union, which a `switch` on `event.type` narrows. `RoomHooks` types the `hooks` object, which helps when you build it apart from `betterRoom()`.
+`membership` and `room` are the same reports the endpoints return, and each hook receives its own copy, so changing it, its dates included, changes neither the response nor the stored row. Every hook receives the whole event, `type` included, typed to the one it is named after: `onJoined` gets `RoomEventOf<'joined'>`, so `event.membership` needs no narrowing, while `onEvent` gets the `RoomEvent` union, which a `switch` on `event.type` narrows. `RoomHooks` types the `hooks` object, which helps when you build it apart from `betterRoom()`.
 
 A handler kept in its own module names its event with `RoomEventOf`, and a whole set of hooks with `RoomHooks`:
 
@@ -384,7 +393,7 @@ What the signal guarantees, and what it does not:
 - It fires once per change that was saved, after the write landed, never for a refusal and never for a call that changed nothing: a second join by a member, leaving twice and locking a locked room are all silent.
 - It runs in the process that handled the request, and the request waits for it, so hand anything slow to a queue. With several instances, publish the event to your own broker, such as Redis pub/sub, and fan it out from there.
 - A hook that throws never undoes the change or fails the request. The error is logged through Better Auth's logger, and the event is not retried.
-- A deadline raises nothing when it passes. A membership or a room expires by the clock, not by a write, so schedule your own timer from `expiresAt` if your clients must hear about it at that moment. `expired` arrives later, when `reconcileRoomCapacity` takes the seat back, and only for a membership that neither left nor was revoked: a seat that reconciliation recollects after a revocation raises nothing new, because `revoked` already announced it.
+- A deadline raises nothing when it passes. A membership or a room expires by the clock, not by a write, so schedule your own timer from `expiresAt` if your clients must hear about it at that moment. `expired` arrives later, when `reconcileRoomCapacity` takes the seat back, carries the membership as that write found it rather than as the batch read it, and only for a membership that neither left nor was revoked: a seat that reconciliation recollects after a revocation raises nothing new, because `revoked` already announced it.
 - A change made directly in the database, outside Better Auth, raises nothing.
 
 ### Migrating from `onChange`
@@ -474,6 +483,7 @@ if (error?.code === ROOM_ERROR_CODES.ROOM_AT_CAPACITY.code) {
 | `RESUME_IS_SERVER_ONLY` | 403 | resuming a promotion was called over HTTP |
 | `UNKNOWN_ROOM` | 404 | no room has that id; over HTTP, reading access, reading occupancy and leaving answer a missing room as they answer a foreign one instead |
 | `UNKNOWN_ACTOR` | 404 | no actor has that id, or the caller's actor was erased while the request ran |
+| `UNKNOWN_USER` | 404 | a server-side creation named a `userId` that no user has |
 | `ROOM_AT_CAPACITY` | 409 | the room has no seat left |
 | `ROOM_CONTENDED` | 409 | the room or the membership kept changing while the request tried to settle it |
 | `ALREADY_A_MEMBER` | 409 | the actor already holds a membership there |
@@ -599,11 +609,11 @@ The plugin runs on whatever adapter Better Auth is given, with no transaction sp
 - **A seat is returned exactly once.** Each membership carries an `occupancy` of `1` or `0`. Leaving, revocation, expiry, promotion and user deletion all release through the same guarded write, which only succeeds while `occupancy > 0`, and only the call that flips it lowers the counter. However many of them notice the same membership, one seat comes back.
 - **One actor never pays twice.** A new membership is written vacant first, and its seat is taken by the same guarded write that takes a seat back on a rejoin, the one that flips `occupancy` from `0` to `1`. Two joins or additions of one actor both find that single row, and only one of them flips it; the other returns the seat it claimed at the gate.
 - **The room's state is part of the gate.** The guarded increment only matches a room that still admits: `active` for a join, `active` or `locked` for an addition. A lock or a close that lands after the room was read refuses the join without counting it.
-- **The counter is a gate, not a tally.** It may sit above the memberships holding the room after a write that failed halfway, and never below them. That is the direction that refuses a free seat instead of admitting past the limit. `getRoomOccupancy` counts the memberships themselves, so it stays exact, and reconciliation recollects what a membership still owes.
+- **The counter is a gate, not a tally.** It may sit above the memberships holding the room after a write that failed halfway, and never below them. That is the direction that refuses a free seat instead of admitting past the limit. The same holds for a moment while a seat is being returned, so joins and leaves of one actor sent at once may see a `ROOM_AT_CAPACITY` that a join sent afterwards does not. `getRoomOccupancy` counts the memberships themselves, so it is exact once concurrent changes settle, and reconciliation recollects what a membership still owes.
 
 ### Writes that race or fail
 
-- **A refused guard is answered from a fresh read.** When another request changed a membership between the read and the write, the answer comes from the row as it is now, never from the row read earlier. A leave overtaken by a revocation is refused as revoked, the second of two revocations as already revoked, a rejoin racing a revocation is refused without taking the seat, and a join turned away at the gate by its own actor's concurrent join answers with that membership.
+- **A refused guard is answered from a fresh read.** When another request changed a membership between the read and the write, the answer comes from the row as it is now, never from the row read earlier. A leave overtaken by a revocation is refused as revoked, the second of two revocations as already revoked, a rejoin racing a revocation is refused without taking the seat, and a join turned away at the gate by its own actor's concurrent join answers with that membership, unless the room it reads again no longer admits joins, which it answers instead.
 - **A writer checks its actor after writing, and an eraser reads after erasing.** A join, an addition or a promotion confirms after its write that the actor it wrote for, and that actor's user, still exist; the erasure of an actor reads its memberships again after removing it. Either the writer sees the actor gone and releases what it took, or the eraser sees the membership and releases it. On SQL databases `roomMember.actorId` restricts the removal while any membership names the actor, and the erasure drains and tries again.
 - **A failed write is never an outcome by itself.** A write whose acknowledgement was lost may still have landed, so the plugin reads the one row that would prove it: the code it issued, the membership it enrolled, the actor it created, the budget it opened. Only that row may turn the failure into an answer; when the read finds nothing, the original error is raised.
 - **Retried writes report what still did not land.** A guarded write that keeps refusing under contention is retried a bounded number of times, and a failed attempt that could not be counted is logged instead of silently dropped.

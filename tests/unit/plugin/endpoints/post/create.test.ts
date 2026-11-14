@@ -15,7 +15,7 @@ const scenario = (room?: RoomOptions) => {
     postRoute(auth, 'create', body, cookie === undefined ? {} : { cookie })
   const host = () => signedIn(auth, 'host@example.com')
 
-  return { db, create, host }
+  return { db, auth, create, host }
 }
 
 describe('creating a room over http', () => {
@@ -65,6 +65,51 @@ describe('creating a room refusing its seats', () => {
       expect(response.status).toBe(400)
       expect(await codeOf(response)).toBe('VALIDATION_ERROR')
       expect(db.room).toHaveLength(0)
+    }
+  )
+})
+
+describe('creating a room refusing its expiry', () => {
+  test('writes no actor for a creator whose room expires in the past', async () => {
+    const { db, create, host } = scenario(ENABLED)
+    const cookie = await host()
+    const response = await create({ expiresAt: '2020-01-01T00:00:00Z' }, cookie)
+
+    expect(response.status).toBe(400)
+    expect(await codeOf(response)).toBe('ROOM_EXPIRES_IN_THE_PAST')
+    expect(db.room).toHaveLength(0)
+    expect(db.roomActor).toHaveLength(0)
+  })
+
+  test('refuses an expiry no supported database orders correctly', async () => {
+    const { db, create, host } = scenario(ENABLED)
+    const cookie = await host()
+    const response = await create(
+      { expiresAt: '+010000-01-01T00:00:00Z' },
+      cookie
+    )
+
+    expect(response.status).toBe(400)
+    expect(await codeOf(response)).toBe('VALIDATION_ERROR')
+    expect(db.room).toHaveLength(0)
+    expect(db.roomActor).toHaveLength(0)
+  })
+})
+
+describe('creating a room for a user server side', () => {
+  test.each(['', 'absent-user'])(
+    'refuses %p, which names no user, before writing anything',
+    async userId => {
+      const { db, auth } = scenario()
+      const response = await auth.api.createRoom({
+        body: { userId },
+        asResponse: true
+      })
+
+      expect(response.status).toBe(404)
+      expect(await codeOf(response)).toBe('UNKNOWN_USER')
+      expect(db.room).toHaveLength(0)
+      expect(db.roomActor).toHaveLength(0)
     }
   )
 })

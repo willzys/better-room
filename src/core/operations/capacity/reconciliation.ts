@@ -1,10 +1,10 @@
 import { hasLapsed } from '@/core/membership'
-import { release } from '@/core/operations/capacity/release'
+import { reclaim } from '@/core/operations/capacity/release'
 
 import type { Membership } from '@/core/membership'
-import type { ReleaseStore } from '@/core/operations/capacity/release'
+import type { ReclaimStore } from '@/core/operations/capacity/release'
 
-export type ReconciliationStore = ReleaseStore & {
+export type ReconciliationStore = ReclaimStore & {
   readonly owing: (now: Date, batch: number) => Promise<Membership[]>
 }
 
@@ -24,16 +24,14 @@ export const reconcile = async (
   store: ReconciliationStore
 ): Promise<Reconciliation> => {
   const owing = await store.owing(request.now, request.batch)
-  const settled = await Promise.all(
-    owing.map(membership => release(membership, request.now, store, 'none'))
+  const reclaimed = await Promise.all(
+    owing.map(membership => reclaim(membership, request.now, store))
   )
+  const taken = reclaimed.filter(membership => membership !== null)
 
   return {
     owing: owing.length,
-    released: settled.filter(Boolean).length,
-    lapsed: owing.filter(
-      (membership, index) =>
-        settled[index] && hasLapsed(membership, request.now)
-    )
+    released: taken.length,
+    lapsed: taken.filter(membership => hasLapsed(membership, request.now))
   }
 }

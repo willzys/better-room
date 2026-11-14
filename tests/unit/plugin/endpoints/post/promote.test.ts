@@ -65,4 +65,17 @@ describe('resuming a promotion refused', () => {
     expect(await codeOf(refused)).toBe('RESUME_NEEDS_BOTH_NAMES')
     expect(onlyRow(db.roomMember).actorId).toBe(actorId)
   })
+
+  test('refuses a user named without the actor it absorbs', async () => {
+    const { db, auth, actorId, userId } = await scenario()
+
+    const refused = await auth.api.promoteRoomActor({
+      body: { userId },
+      asResponse: true
+    })
+
+    expect(refused.status).toBe(400)
+    expect(await codeOf(refused)).toBe('RESUME_NEEDS_BOTH_NAMES')
+    expect(onlyRow(db.roomMember).actorId).toBe(actorId)
+  })
 })

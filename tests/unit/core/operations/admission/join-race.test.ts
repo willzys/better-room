@@ -119,3 +119,22 @@ describe('join racing what removes its membership', () => {
     expect(outcome).toEqual({ admitted: false, refusal: 'locked' })
   })
 })
+
+describe('join answering after the gate turned it down', () => {
+  test('refuses a room that closed while the gate turned it down, even for a member', async () => {
+    const { instance, resolveActor } = joinFake({ admits: false })
+    const rooms = [room(), room({ status: 'closed' })]
+    const reads = [null, membership()]
+
+    const outcome = await join(
+      { codeIdentifier: 'identifier', actor: resolveActor, now: NOW },
+      {
+        ...instance,
+        room: () => Promise.resolve(rooms.shift() ?? null),
+        membership: () => Promise.resolve(reads.shift() ?? null)
+      }
+    )
+
+    expect(outcome).toEqual({ admitted: false, refusal: 'closed' })
+  })
+})
