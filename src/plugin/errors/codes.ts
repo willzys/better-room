@@ -16,6 +16,7 @@ export const ROOM_ERROR_CODES = defineErrorCodes({
   CODE_SPACE_EXHAUSTED: 'No free room code was found',
   ROOM_EXPIRES_IN_THE_PAST: 'The room would expire before it began',
   UNKNOWN_ROOM: 'No such room',
+  UNREADABLE_CURSOR: 'Unreadable listing cursor',
   ALREADY_A_MEMBER: 'The actor already holds a membership in this room',
   EXACTLY_ONE_IDENTITY: 'Name the member by exactly one of userId or actorId',
   UNKNOWN_ACTOR: 'No such actor',

@@ -6,6 +6,7 @@ import { readOccupancy } from '@/core/operations/reads/occupancy'
 import { occupancyError } from '@/plugin/errors/refusals'
 import { carriersFrom, isServerCall } from '@/plugin/http/carrier'
 import { concealed } from '@/plugin/http/concealment'
+import { isStoredId } from '@/plugin/http/identifiers'
 import { occupancyReport } from '@/plugin/http/report'
 import { actorStore } from '@/plugin/stores/identity/actor'
 import { occupancyStore } from '@/plugin/stores/reads/occupancy'
@@ -21,6 +22,11 @@ export const occupancyEndpoint = () =>
     async ctx => {
       const now = new Date()
       const { adapter } = ctx.context
+
+      if (!isStoredId(ctx.context.options, ctx.query.roomId)) {
+        throw occupancyError(concealed('unknown-room', ctx))
+      }
+
       const actor = await findActor(
         await carriersFrom(ctx, now),
         actorStore(adapter)

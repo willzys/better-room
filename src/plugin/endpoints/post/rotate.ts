@@ -4,6 +4,7 @@ import * as z from 'zod'
 import { rotateCode } from '@/core/operations/codes/rotation'
 import { minter } from '@/plugin/codes/mint'
 import { rotationError } from '@/plugin/errors/refusals'
+import { isStoredId } from '@/plugin/http/identifiers'
 import { rotationStore } from '@/plugin/stores/codes/rotation'
 
 import type { Signal } from '@/plugin/hooks/events'
@@ -25,7 +26,11 @@ export const rotateEndpoint = (deps: RotateDeps) =>
   createAuthEndpoint.serverOnly(
     { method: 'POST', body: rotateBody },
     async ctx => {
-      const { adapter, secret } = ctx.context
+      const { adapter, secret, options } = ctx.context
+
+      if (!isStoredId(options, ctx.body.roomId)) {
+        throw rotationError('unknown-room')
+      }
 
       const outcome = await rotateCode(
         {
